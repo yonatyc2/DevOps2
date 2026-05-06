@@ -74,7 +74,7 @@ function MetricBar({ value, thresholds, label }) {
   )
 }
 
-function ServerCard({ server, snap, trend, loading, onClick }) {
+function ServerCard({ server, snap, trend, loading, onClick, onHistory }) {
   const status = loading ? 'loading' : snapStatus(snap)
   const diskPct = snap ? maxDiskPct(snap) : null
   const cpuPct  = snap?.linux?.cpuUsagePercent ?? null
@@ -125,6 +125,17 @@ function ServerCard({ server, snap, trend, loading, onClick }) {
       )}
 
       {!loading && !snap && <p className="sg-offline">Unreachable</p>}
+
+      <div className="sg-card-footer" onClick={e => e.stopPropagation()}>
+        <button
+          type="button"
+          className="sg-history-btn"
+          onClick={e => { e.stopPropagation(); onHistory() }}
+          title="View history & prediction"
+        >
+          📈 History
+        </button>
+      </div>
     </div>
   )
 }
@@ -226,6 +237,10 @@ export default function ServerGrid() {
     navigate('/assistant')
   }
 
+  const handleHistoryClick = (server) => {
+    navigate(`/history?serverId=${encodeURIComponent(server.id)}`)
+  }
+
   if (!servers.length && polling) {
     return <div className="sg-page"><p className="sg-loading-main">Loading servers…</p></div>
   }
@@ -260,6 +275,7 @@ export default function ServerGrid() {
             trend={trends[server.id] || {}}
             loading={polling && !snapshots[server.id]}
             onClick={() => handleCardClick(server)}
+            onHistory={() => handleHistoryClick(server)}
           />
         ))}
         {servers.length === 0 && !polling && (

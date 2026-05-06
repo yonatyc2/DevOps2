@@ -257,6 +257,27 @@
   text-transform: uppercase;
 }
 
+/* ── Card footer ─────────────────────────────────────────────── */
+
+.sg-card-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.sg-history-btn {
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--fast);
+}
+.sg-history-btn:hover { color: var(--accent); }
+
 /* ── States ────────────────────────────────────────────────────── */
 
 .sg-loading-main {

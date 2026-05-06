@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { usePolling } from '../context/PollingContext'
-import { THRESH } from '../lib/serverHealth'
+import { THRESH, maxDiskPct, maxContainerRestarts } from '../lib/serverHealth'
 import './HistoryView.css'
 
 const RANGES = [
@@ -17,12 +17,52 @@ function fmtTs(ts, range) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' })
 }
 
+function StatPill({ label, value, status = 'ok' }) {
+  const colors = { ok: 'var(--success)', warn: 'var(--warning)', crit: 'var(--danger)', unknown: 'var(--text-subtle)' }
+  return (
+    <div className="hv-pill">
+      <span className="hv-pill-label">{label}</span>
+      <span className="hv-pill-value" style={{ color: colors[status] || colors.ok }}>{value}</span>
+    </div>
+  )
+}
+
+function LiveSnapshot({ snap }) {
+  if (!snap) return null
+  const cpuPct  = snap.linux?.cpuUsagePercent ?? null
+  const memPct  = snap.linux?.memory
+    ? (100 * snap.linux.memory.memUsedMb) / snap.linux.memory.memTotalMb
+    : null
+  const diskPct = maxDiskPct(snap)
+  const containers = snap.docker?.containers?.length ?? null
+  const restarts = maxContainerRestarts(snap)
+  const nginxUp = snap.nginx?.running
+
+  const cpuStatus  = cpuPct  == null ? 'unknown' : cpuPct  >= THRESH.cpu.crit  ? 'crit' : cpuPct  >= THRESH.cpu.warn  ? 'warn' : 'ok'
+  const memStatus  = memPct  == null ? 'unknown' : memPct  >= THRESH.mem.crit  ? 'crit' : memPct  >= THRESH.mem.warn  ? 'warn' : 'ok'
+  const diskStatus = diskPct == null ? 'unknown' : diskPct >= THRESH.disk.crit ? 'crit' : diskPct >= THRESH.disk.warn ? 'warn' : 'ok'
+
+  return (
+    <div className="hv-live">
+      <span className="hv-live-label">Live snapshot</span>
+      <div className="hv-pills">
+        {cpuPct  != null && <StatPill label="CPU"  value={`${cpuPct.toFixed(1)}%`}  status={cpuStatus}  />}
+        {memPct  != null && <StatPill label="Mem"  value={`${memPct.toFixed(1)}%`}  status={memStatus}  />}
+        {diskPct != null && <StatPill label="Disk" value={`${diskPct}%`}             status={diskStatus} />}
+        {containers != null && <StatPill label="Containers" value={containers} />}
+        {restarts >= THRESH.restarts.crit && <StatPill label="Restarts" value={restarts} status="warn" />}
+        {nginxUp != null && <StatPill label="Nginx" value={nginxUp ? 'up' : 'DOWN'} status={nginxUp ? 'ok' : 'crit'} />}
+      </div>
+    </div>
+  )
+}
+
 function LineChart({ points, valueKey, color, label, thresholds = {}, range }) {
   const data = points.filter(p => p[valueKey] != null)
   if (data.length < 2) return (
     <div className="hv-chart">
       <span className="hv-chart-label">{label}</span>
-      <div className="hv-chart-empty">Not enough data yet</div>
+      <div className="hv-chart-empty">Collecting… ({data.length}/2 points needed to draw)</div>
     </div>
   )
 
@@ -157,13 +197,18 @@ function PredictionCard({ prediction }) {
 
 export default function HistoryView() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { servers } = usePolling()
+  const { servers, snapshots } = usePolling()
 
   const [serverId, setServerId] = useState(searchParams.get('serverId') || '')
   const [range,    setRange]    = useState(searchParams.get('range')    || '24h')
   const [data,     setData]     = useState(null)
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
+
+  // Auto-select first server if none chosen and servers are loaded
+  useEffect(() => {
+    if (!serverId && servers.length) setServerId(servers[0].id)
+  }, [servers])
 
   useEffect(() => {
     if (!serverId) return
@@ -176,7 +221,8 @@ export default function HistoryView() {
       .catch(e => { setError(String(e)); setLoading(false) })
   }, [serverId, range])
 
-  const server = servers.find(s => s.id === serverId)
+  const server   = servers.find(s => s.id === serverId)
+  const liveSnap = snapshots[serverId] ?? null
 
   return (
     <div className="hv-page">
@@ -209,33 +255,29 @@ export default function HistoryView() {
         {server && <span className="hv-server-label">{server.name || server.host}</span>}
       </div>
 
-      {!serverId && (
-        <div className="hv-state">Select a server to view its history.</div>
-      )}
-      {serverId && loading && <div className="hv-state">Loading…</div>}
+      {/* Live snapshot always visible when a server is selected */}
+      <LiveSnapshot snap={liveSnap} />
+
+      {serverId && loading && <div className="hv-state">Loading history…</div>}
       {serverId && error   && <div className="hv-state hv-state--err">{error}</div>}
 
       {serverId && data && !loading && (
         <div className="hv-body">
-          {data.points.length < 2 ? (
-            <div className="hv-state">
-              No data yet for this range. History accumulates from background polls (every 5 min).
-            </div>
-          ) : (
-            <div className="hv-charts">
-              <LineChart points={data.points} valueKey="cpu"  color="#60a5fa" label="CPU %"
-                thresholds={{ warn: THRESH.cpu.warn,  crit: THRESH.cpu.crit  }} range={range} />
-              <LineChart points={data.points} valueKey="mem"  color="#34d399" label="Memory %"
-                thresholds={{ warn: THRESH.mem.warn,  crit: THRESH.mem.crit  }} range={range} />
-              <LineChart points={data.points} valueKey="disk" color="#a78bfa" label="Disk %"
-                thresholds={{ warn: THRESH.disk.warn, crit: THRESH.disk.crit }} range={range} />
-            </div>
-          )}
+          <div className="hv-charts">
+            <LineChart points={data.points} valueKey="cpu"  color="#60a5fa" label="CPU %"
+              thresholds={{ warn: THRESH.cpu.warn,  crit: THRESH.cpu.crit  }} range={range} />
+            <LineChart points={data.points} valueKey="mem"  color="#34d399" label="Memory %"
+              thresholds={{ warn: THRESH.mem.warn,  crit: THRESH.mem.crit  }} range={range} />
+            <LineChart points={data.points} valueKey="disk" color="#a78bfa" label="Disk %"
+              thresholds={{ warn: THRESH.disk.warn, crit: THRESH.disk.crit }} range={range} />
+          </div>
 
           <PredictionCard prediction={data.prediction} />
 
           <p className="hv-footnote">
-            {data.points.length} data points in range · prediction uses 7-day linear regression
+            {data.points.length} data point{data.points.length !== 1 ? 's' : ''} in range
+            {data.points.length < 3 && ' — charts fill in as polls accumulate (every 5 min)'}
+            {data.points.length >= 3 && ' · prediction uses 7-day linear regression'}
           </p>
         </div>
       )}
