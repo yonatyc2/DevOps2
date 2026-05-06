@@ -9,6 +9,7 @@ import HistoryView from './pages/HistoryView';
 import Tasks from './pages/Tasks';
 import RunTask from './pages/RunTask';
 import JobHistory from './pages/JobHistory';
+import BackupRestore from './pages/BackupRestore';
 import { PollingProvider } from './context/PollingContext';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/tasks/:taskId" element={<RunTask />} />
             <Route path="/jobs" element={<JobHistory />} />
+            <Route path="/backup-restore" element={<BackupRestore />} />
           </Routes>
         </Layout>
       </PollingProvider>

@@ -60,6 +60,18 @@ export default function Tasks() {
                 {cat}
               </h2>
               <div className="tk-grid">
+                {cat === 'PostgreSQL' && (
+                  <button
+                    type="button"
+                    className="tk-card tk-card--workflow"
+                    onClick={() => navigate('/backup-restore')}
+                  >
+                    <span className="tk-workflow-badge">workflow</span>
+                    <span className="tk-card-name">🔄 Backup &amp; Restore</span>
+                    <span className="tk-card-desc">Backup a DB on source, SCP to target, drop → create → restore — all in one pipeline.</span>
+                    <span className="tk-card-steps">8 steps · 2 servers</span>
+                  </button>
+                )}
                 {visible.filter(t => t.category === cat).map(task => (
                   <button
                     key={task.id}

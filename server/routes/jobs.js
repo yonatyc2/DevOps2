@@ -16,6 +16,31 @@ function interpolate(template, params) {
   );
 }
 
+// POST /api/jobs/run — execute an arbitrary command (used by workflow pages)
+router.post('/run', async (req, res) => {
+  const { serverId, command, maskedValues = [] } = req.body
+  if (!serverId || !command)
+    return res.status(400).json({ error: 'serverId and command required' })
+
+  let displayCommand = command
+  for (const v of maskedValues) {
+    if (v) displayCommand = displayCommand.split(v).join('***')
+  }
+
+  try {
+    const r = await fetch(`${SPRING_BOOT}/api/commands/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serverId, command }),
+    })
+    const body = await r.json()
+    if (!r.ok) return res.status(r.status).json({ error: body.error || r.statusText })
+    res.json({ output: body.output ?? body.result ?? JSON.stringify(body), command: displayCommand })
+  } catch (err) {
+    res.status(502).json({ error: `Spring Boot unreachable: ${err.message}` })
+  }
+})
+
 // POST /api/jobs/step — execute one step via Spring Boot
 router.post('/step', async (req, res) => {
   const { serverId, taskId, stepIndex, params = {} } = req.body;
