@@ -4,6 +4,7 @@ import LogAnalyzer from './pages/LogAnalyzer';
 import CertMonitor from './pages/CertMonitor';
 import DockerRegistry from './pages/DockerRegistry';
 import SentinelOps from './pages/SentinelOps';
+import ServerGrid from './pages/ServerGrid';
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
           <Route path="/certs" element={<CertMonitor />} />
           <Route path="/registry" element={<DockerRegistry />} />
           <Route path="/assistant" element={<SentinelOps />} />
+          <Route path="/grid" element={<ServerGrid />} />
         </Routes>
       </Layout>
     </BrowserRouter>

@@ -235,6 +235,11 @@ export default function SentinelOps() {
   useEffect(() => {
     fetchServers()
     fetchChatMode()
+    const preselect = sessionStorage.getItem('sentinelops.selectedServer')
+    if (preselect) {
+      setSelectedServerId(preselect)
+      sessionStorage.removeItem('sentinelops.selectedServer')
+    }
   }, [])
 
   useEffect(() => {

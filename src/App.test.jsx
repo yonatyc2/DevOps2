@@ -9,17 +9,19 @@ describe('an always true assertion', () => {
 })
 
 describe('App', () => {
-  it('renders the App component', () => {
+  it('renders the navigation brand', () => {
     render(<App />)
-    const textElement = screen.getByText(/Learn GitLab/i);
-    expect(textElement).toBeInTheDocument();
-
-    //screen.debug(); // prints out the jsx in the App component unto the command line
+    expect(screen.getByText(/DevOps Assistant/i)).toBeInTheDocument()
   })
 
-  it('shows the GitLab logo', () => {
+  it('renders all nav links', () => {
     render(<App />)
-    const logo = screen.getByAltText('GitLab logo');
-    expect(logo).toBeInTheDocument();
+    const nav = document.querySelector('nav')
+    const navText = nav.textContent
+    expect(navText).toMatch(/Log Analyzer/i)
+    expect(navText).toMatch(/Cert Monitor/i)
+    expect(navText).toMatch(/Docker Registry/i)
+    expect(navText).toMatch(/Server Grid/i)
+    expect(navText).toMatch(/AI Assistant/i)
   })
 })
