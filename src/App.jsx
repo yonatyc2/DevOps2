@@ -6,6 +6,9 @@ import DockerRegistry from './pages/DockerRegistry';
 import SentinelOps from './pages/SentinelOps';
 import ServerGrid from './pages/ServerGrid';
 import HistoryView from './pages/HistoryView';
+import Tasks from './pages/Tasks';
+import RunTask from './pages/RunTask';
+import JobHistory from './pages/JobHistory';
 import { PollingProvider } from './context/PollingContext';
 
 export default function App() {
@@ -19,7 +22,10 @@ export default function App() {
             <Route path="/registry" element={<DockerRegistry />} />
             <Route path="/assistant" element={<SentinelOps />} />
             <Route path="/grid" element={<ServerGrid />} />
-          <Route path="/history" element={<HistoryView />} />
+            <Route path="/history" element={<HistoryView />} />
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/tasks/:taskId" element={<RunTask />} />
+            <Route path="/jobs" element={<JobHistory />} />
           </Routes>
         </Layout>
       </PollingProvider>

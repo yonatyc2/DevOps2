@@ -4,6 +4,8 @@ import logsRouter from './routes/logs.js';
 import certsRouter from './routes/certs.js';
 import registryRouter from './routes/registry.js';
 import historyRouter from './routes/history.js';
+import tasksRouter from './routes/tasks.js';
+import jobsRouter from './routes/jobs.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,6 +17,8 @@ app.use('/api/logs', logsRouter);
 app.use('/api/certs', certsRouter);
 app.use('/api/registry', registryRouter);
 app.use('/api/history', historyRouter);
+app.use('/api/tasks', tasksRouter);
+app.use('/api/jobs', jobsRouter);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 

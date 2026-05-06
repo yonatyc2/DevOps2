@@ -1,0 +1,118 @@
+/* ── Daily Tasks catalog ──────────────────────────────────────── */
+
+.tk-page {
+  padding: 1.25rem 1.5rem 2rem;
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tk-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.tk-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.tk-search {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 0.82rem;
+  width: 220px;
+}
+.tk-search:focus { outline: none; border-color: var(--border-focus); }
+
+/* ── Body ─────────────────────────────────────────────────────── */
+
+.tk-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tk-section {}
+
+.tk-cat-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 0.6rem;
+}
+
+.tk-cat-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ── Task grid ────────────────────────────────────────────────── */
+
+.tk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.7rem;
+}
+
+.tk-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease), transform var(--fast) var(--ease);
+}
+.tk-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.tk-card-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.tk-card-desc {
+  font-size: 0.72rem;
+  color: var(--text-subtle);
+  line-height: 1.4;
+}
+
+.tk-card-steps {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+
+/* ── States ───────────────────────────────────────────────────── */
+
+.tk-state {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  padding: 2rem 0;
+}
+.tk-state--err { color: var(--danger); }

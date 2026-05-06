@@ -1,0 +1,427 @@
+[
+  {
+    "id": "pg-connections",
+    "name": "Active Connections",
+    "category": "PostgreSQL",
+    "description": "Show active PostgreSQL connections grouped by state.",
+    "params": [],
+    "steps": [
+      {
+        "label": "Query pg_stat_activity",
+        "command": "psql -U postgres -c \"SELECT count(*), state FROM pg_stat_activity GROUP BY state;\""
+      }
+    ]
+  },
+  {
+    "id": "pg-db-sizes",
+    "name": "Database Sizes",
+    "category": "PostgreSQL",
+    "description": "List all databases with their sizes, largest first.",
+    "params": [],
+    "steps": [
+      {
+        "label": "Query pg_database_size",
+        "command": "psql -U postgres -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database ORDER BY pg_database_size(datname) DESC;\""
+      }
+    ]
+  },
+  {
+    "id": "pg-table-sizes",
+    "name": "Table Sizes",
+    "category": "PostgreSQL",
+    "description": "List top 20 tables by size in a given database.",
+    "params": [
+      { "key": "database", "label": "Database name", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "Query pg_total_relation_size",
+        "command": "psql -U postgres -d {{database}} -c \"SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size FROM pg_tables ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC LIMIT 20;\""
+      }
+    ]
+  },
+  {
+    "id": "pg-long-queries",
+    "name": "Long-Running Queries",
+    "category": "PostgreSQL",
+    "description": "Find queries running longer than a given threshold.",
+    "params": [
+      { "key": "minutes", "label": "Threshold (minutes)", "type": "number", "default": "1", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "Find slow queries",
+        "command": "psql -U postgres -c \"SELECT pid, now() - query_start AS duration, left(query, 120) AS query FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '{{minutes}} minutes' ORDER BY duration DESC;\""
+      }
+    ]
+  },
+  {
+    "id": "pg-vacuum",
+    "name": "Vacuum Analyze",
+    "category": "PostgreSQL",
+    "description": "Run VACUUM ANALYZE on a database to reclaim space and update planner stats.",
+    "params": [
+      { "key": "database", "label": "Database name", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "Run VACUUM ANALYZE",
+        "command": "psql -U postgres -d {{database}} -c \"VACUUM ANALYZE;\""
+      }
+    ]
+  },
+  {
+    "id": "pg-locks",
+    "name": "Check Locks",
+    "category": "PostgreSQL",
+    "description": "Show blocked queries and lock holders.",
+    "params": [],
+    "steps": [
+      {
+        "label": "Query pg_locks + pg_stat_activity",
+        "command": "psql -U postgres -c \"SELECT bl.pid AS blocked_pid, a.query AS blocked_query, kl.pid AS lock_holder_pid, ka.query AS lock_holder_query FROM pg_catalog.pg_locks bl JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid JOIN pg_catalog.pg_locks kl ON kl.transactionid = bl.transactionid AND kl.pid != bl.pid JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid WHERE NOT bl.granted;\""
+      }
+    ]
+  },
+  {
+    "id": "svc-status",
+    "name": "Service Status",
+    "category": "Services",
+    "description": "Check the status of a specific systemd service.",
+    "params": [
+      { "key": "service", "label": "Service name", "type": "text", "required": true, "default": "nginx" }
+    ],
+    "steps": [
+      {
+        "label": "systemctl status",
+        "command": "systemctl status {{service}} --no-pager -l"
+      }
+    ]
+  },
+  {
+    "id": "svc-failed",
+    "name": "Failed Services",
+    "category": "Services",
+    "description": "List all systemd units that are in a failed state.",
+    "params": [],
+    "steps": [
+      {
+        "label": "List failed units",
+        "command": "systemctl --failed --no-pager"
+      }
+    ]
+  },
+  {
+    "id": "svc-restart",
+    "name": "Restart Service",
+    "category": "Services",
+    "description": "Restart a systemd service and verify it comes back up.",
+    "params": [
+      { "key": "service", "label": "Service name", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "Restart service",
+        "command": "sudo systemctl restart {{service}}"
+      },
+      {
+        "label": "Check status",
+        "command": "systemctl is-active {{service}}"
+      }
+    ]
+  },
+  {
+    "id": "svc-logs",
+    "name": "Service Logs",
+    "category": "Services",
+    "description": "Tail recent logs for a systemd service.",
+    "params": [
+      { "key": "service", "label": "Service name", "type": "text", "required": true },
+      { "key": "lines",   "label": "Lines to show", "type": "number", "default": "50" }
+    ],
+    "steps": [
+      {
+        "label": "journalctl tail",
+        "command": "journalctl -u {{service}} -n {{lines}} --no-pager"
+      }
+    ]
+  },
+  {
+    "id": "docker-ps",
+    "name": "List Containers",
+    "category": "Docker",
+    "description": "Show all containers with their status and ports.",
+    "params": [],
+    "steps": [
+      {
+        "label": "docker ps -a",
+        "command": "docker ps -a --format \"table {{.Names}}\\t{{.Status}}\\t{{.Ports}}\\t{{.Image}}\""
+      }
+    ]
+  },
+  {
+    "id": "docker-stats",
+    "name": "Container Stats",
+    "category": "Docker",
+    "description": "Show real-time resource usage snapshot for all containers.",
+    "params": [],
+    "steps": [
+      {
+        "label": "docker stats snapshot",
+        "command": "docker stats --no-stream"
+      }
+    ]
+  },
+  {
+    "id": "docker-logs",
+    "name": "Container Logs",
+    "category": "Docker",
+    "description": "Show recent logs from a Docker container.",
+    "params": [
+      { "key": "container", "label": "Container name", "type": "text", "required": true },
+      { "key": "lines",     "label": "Lines to show",  "type": "number", "default": "50" }
+    ],
+    "steps": [
+      {
+        "label": "docker logs",
+        "command": "docker logs {{container}} --tail {{lines}} 2>&1"
+      }
+    ]
+  },
+  {
+    "id": "docker-restart",
+    "name": "Restart Container",
+    "category": "Docker",
+    "description": "Restart a Docker container and verify it is running.",
+    "params": [
+      { "key": "container", "label": "Container name", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "docker restart",
+        "command": "docker restart {{container}}"
+      },
+      {
+        "label": "Verify running",
+        "command": "docker inspect --format '{{.State.Status}}' {{container}}"
+      }
+    ]
+  },
+  {
+    "id": "docker-prune",
+    "name": "Prune Docker Resources",
+    "category": "Docker",
+    "description": "Remove stopped containers, dangling images, and unused networks.",
+    "params": [],
+    "steps": [
+      {
+        "label": "Prune containers",
+        "command": "docker container prune -f"
+      },
+      {
+        "label": "Prune images",
+        "command": "docker image prune -f"
+      },
+      {
+        "label": "Prune networks",
+        "command": "docker network prune -f"
+      }
+    ]
+  },
+  {
+    "id": "disk-usage",
+    "name": "Disk Usage",
+    "category": "Disk",
+    "description": "Show disk usage for all mounted filesystems.",
+    "params": [],
+    "steps": [
+      {
+        "label": "df -h",
+        "command": "df -h --output=source,fstype,size,used,avail,pcent,target | head -30"
+      }
+    ]
+  },
+  {
+    "id": "disk-large-files",
+    "name": "Find Large Files",
+    "category": "Disk",
+    "description": "Find files larger than a given size under a path.",
+    "params": [
+      { "key": "path", "label": "Search path", "type": "text", "default": "/var", "required": true },
+      { "key": "size", "label": "Min size (MB)", "type": "number", "default": "100" }
+    ],
+    "steps": [
+      {
+        "label": "find + sort",
+        "command": "find {{path}} -type f -size +{{size}}M -exec ls -lh {} \\; 2>/dev/null | sort -k5 -rh | head -20"
+      }
+    ]
+  },
+  {
+    "id": "disk-dir-sizes",
+    "name": "Directory Sizes",
+    "category": "Disk",
+    "description": "Show sizes of top-level directories under a path.",
+    "params": [
+      { "key": "path", "label": "Directory", "type": "text", "default": "/var", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "du -sh",
+        "command": "du -sh {{path}}/* 2>/dev/null | sort -rh | head -20"
+      }
+    ]
+  },
+  {
+    "id": "disk-clean-apt",
+    "name": "Clean APT Cache",
+    "category": "Disk",
+    "description": "Remove cached APT packages and unneeded dependencies.",
+    "params": [],
+    "steps": [
+      {
+        "label": "apt-get clean",
+        "command": "sudo apt-get clean"
+      },
+      {
+        "label": "apt autoremove",
+        "command": "sudo apt-get autoremove -y"
+      },
+      {
+        "label": "Check freed space",
+        "command": "df -h /"
+      }
+    ]
+  },
+  {
+    "id": "disk-journal",
+    "name": "Clean Journal Logs",
+    "category": "Disk",
+    "description": "Vacuum systemd journal to free disk space.",
+    "params": [
+      { "key": "retain", "label": "Retain (e.g. 500M, 7d)", "type": "text", "default": "500M", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "Journal size before",
+        "command": "journalctl --disk-usage"
+      },
+      {
+        "label": "Vacuum journal",
+        "command": "sudo journalctl --vacuum-size={{retain}}"
+      }
+    ]
+  },
+  {
+    "id": "net-ports",
+    "name": "Open Ports",
+    "category": "Network",
+    "description": "List all listening TCP/UDP ports and the processes using them.",
+    "params": [],
+    "steps": [
+      {
+        "label": "ss -tlnp",
+        "command": "ss -tlnp"
+      }
+    ]
+  },
+  {
+    "id": "net-ping",
+    "name": "Ping Host",
+    "category": "Network",
+    "description": "Test ICMP connectivity to a remote host.",
+    "params": [
+      { "key": "host",  "label": "Hostname / IP", "type": "text", "required": true },
+      { "key": "count", "label": "Packet count",  "type": "number", "default": "4" }
+    ],
+    "steps": [
+      {
+        "label": "ping",
+        "command": "ping -c {{count}} {{host}}"
+      }
+    ]
+  },
+  {
+    "id": "net-dns",
+    "name": "DNS Lookup",
+    "category": "Network",
+    "description": "Resolve a hostname and check DNS propagation.",
+    "params": [
+      { "key": "host", "label": "Hostname", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "dig lookup",
+        "command": "dig +short {{host}} && dig +short {{host}} MX && dig +short {{host}} NS"
+      }
+    ]
+  },
+  {
+    "id": "sys-overview",
+    "name": "System Overview",
+    "category": "System",
+    "description": "Quick snapshot of CPU load, memory, uptime, and top processes.",
+    "params": [],
+    "steps": [
+      {
+        "label": "Uptime + load",
+        "command": "uptime"
+      },
+      {
+        "label": "Memory",
+        "command": "free -h"
+      },
+      {
+        "label": "Top 10 processes by CPU",
+        "command": "ps aux --sort=-%cpu | head -11"
+      }
+    ]
+  },
+  {
+    "id": "sys-memory",
+    "name": "Memory Usage",
+    "category": "System",
+    "description": "Detailed memory usage including swap.",
+    "params": [],
+    "steps": [
+      {
+        "label": "free -h",
+        "command": "free -h"
+      },
+      {
+        "label": "Top memory consumers",
+        "command": "ps aux --sort=-%mem | head -11"
+      }
+    ]
+  },
+  {
+    "id": "sys-cpu",
+    "name": "CPU Info",
+    "category": "System",
+    "description": "Show CPU model, core count, and current frequencies.",
+    "params": [],
+    "steps": [
+      {
+        "label": "lscpu summary",
+        "command": "lscpu | grep -E 'Model name|CPU\\(s\\)|Thread|Socket|MHz|Virtualization'"
+      }
+    ]
+  },
+  {
+    "id": "sys-updates",
+    "name": "Available Updates",
+    "category": "System",
+    "description": "Check for available APT package updates without installing.",
+    "params": [],
+    "steps": [
+      {
+        "label": "apt update",
+        "command": "sudo apt-get update -qq 2>&1 | tail -5"
+      },
+      {
+        "label": "List upgradable",
+        "command": "apt list --upgradable 2>/dev/null | head -30"
+      }
+    ]
+  }
+]
