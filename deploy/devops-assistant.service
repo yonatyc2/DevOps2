@@ -1,0 +1,21 @@
+[Unit]
+Description=DevOps Assistant Node.js API
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/devops-assistant
+ExecStart=/usr/bin/node server/index.js
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3001
+
+# Redirect stdout/stderr to journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=devops-assistant
+
+[Install]
+WantedBy=multi-user.target
