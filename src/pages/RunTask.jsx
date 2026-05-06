@@ -13,6 +13,8 @@ function ParamField({ param, value, onChange }) {
   }
   if (param.type === 'number')
     return <input type="number" {...common} />
+  if (param.type === 'password')
+    return <input type="password" {...common} autoComplete="current-password" />
   if (param.options)
     return (
       <select className="rt-param-input" id={param.key} value={value} onChange={e => onChange(param.key, e.target.value)}>

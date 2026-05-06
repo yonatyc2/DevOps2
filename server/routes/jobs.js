@@ -30,6 +30,16 @@ router.post('/step', async (req, res) => {
 
   const command = interpolate(step.command, params);
 
+  // Build a display-safe version with masked param values
+  const maskedValues = task.params
+    .filter(p => p.masked)
+    .map(p => params[p.key])
+    .filter(Boolean)
+  let displayCommand = command
+  for (const v of maskedValues) {
+    displayCommand = displayCommand.split(v).join('***')
+  }
+
   try {
     const r = await fetch(`${SPRING_BOOT}/api/commands/execute`, {
       method: 'POST',
@@ -38,7 +48,7 @@ router.post('/step', async (req, res) => {
     });
     const body = await r.json();
     if (!r.ok) return res.status(r.status).json({ error: body.error || r.statusText });
-    res.json({ output: body.output ?? body.result ?? JSON.stringify(body), command });
+    res.json({ output: body.output ?? body.result ?? JSON.stringify(body), command: displayCommand });
   } catch (err) {
     res.status(502).json({ error: `Spring Boot unreachable: ${err.message}` });
   }

@@ -4,11 +4,13 @@
     "name": "Active Connections",
     "category": "PostgreSQL",
     "description": "Show all active connections grouped by database and state.",
-    "params": [],
+    "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true }
+    ],
     "steps": [
       {
         "label": "Connections by database + state",
-        "command": "sudo -u postgres psql -c \"SELECT datname, state, count(*) FROM pg_stat_activity WHERE pid <> pg_backend_pid() GROUP BY datname, state ORDER BY datname, state;\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT datname, state, count(*) FROM pg_stat_activity WHERE pid <> pg_backend_pid() GROUP BY datname, state ORDER BY datname, state;\""
       }
     ]
   },
@@ -17,11 +19,13 @@
     "name": "Database Sizes",
     "category": "PostgreSQL",
     "description": "List all databases with their sizes, largest first.",
-    "params": [],
+    "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true }
+    ],
     "steps": [
       {
         "label": "Query pg_database_size",
-        "command": "sudo -u postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database ORDER BY pg_database_size(datname) DESC;\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database ORDER BY pg_database_size(datname) DESC;\""
       }
     ]
   },
@@ -31,12 +35,13 @@
     "category": "PostgreSQL",
     "description": "List top 20 tables by size in a given database.",
     "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
       { "key": "database", "label": "Database name", "type": "text", "required": true }
     ],
     "steps": [
       {
         "label": "Query pg_total_relation_size",
-        "command": "sudo -u postgres psql -d {{database}} -c \"SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size FROM pg_tables ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC LIMIT 20;\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -d {{database}} -c \"SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size FROM pg_tables ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC LIMIT 20;\""
       }
     ]
   },
@@ -46,12 +51,13 @@
     "category": "PostgreSQL",
     "description": "Find queries running longer than a given threshold.",
     "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
       { "key": "minutes", "label": "Threshold (minutes)", "type": "number", "default": "1", "required": true }
     ],
     "steps": [
       {
         "label": "Find slow queries",
-        "command": "sudo -u postgres psql -c \"SELECT pid, now() - query_start AS duration, left(query, 120) AS query FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '{{minutes}} minutes' ORDER BY duration DESC;\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT pid, now() - query_start AS duration, left(query, 120) AS query FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '{{minutes}} minutes' ORDER BY duration DESC;\""
       }
     ]
   },
@@ -60,11 +66,13 @@
     "name": "Check Locks",
     "category": "PostgreSQL",
     "description": "Show blocked queries and the lock holders blocking them.",
-    "params": [],
+    "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true }
+    ],
     "steps": [
       {
         "label": "Query lock contention",
-        "command": "sudo -u postgres psql -c \"SELECT bl.pid AS blocked_pid, a.query AS blocked_query, kl.pid AS lock_holder_pid, ka.query AS lock_holder_query FROM pg_catalog.pg_locks bl JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid JOIN pg_catalog.pg_locks kl ON kl.transactionid = bl.transactionid AND kl.pid != bl.pid JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid WHERE NOT bl.granted;\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT bl.pid AS blocked_pid, a.query AS blocked_query, kl.pid AS lock_holder_pid, ka.query AS lock_holder_query FROM pg_catalog.pg_locks bl JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid JOIN pg_catalog.pg_locks kl ON kl.transactionid = bl.transactionid AND kl.pid != bl.pid JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid WHERE NOT bl.granted;\""
       }
     ]
   },
@@ -74,12 +82,13 @@
     "category": "PostgreSQL",
     "description": "Dump a database to /tmp as a plain SQL file with today's date in the filename.",
     "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
       { "key": "database", "label": "Database name", "type": "text", "required": true }
     ],
     "steps": [
       {
         "label": "pg_dump to /tmp",
-        "command": "sudo -u postgres pg_dump -d {{database}} -f /tmp/{{database}}_$(date +%d_%m_%Y).sql && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres pg_dump -d {{database}} -f /tmp/{{database}}_$(date +%d_%m_%Y).sql && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql\""
       },
       {
         "label": "Verify file",
@@ -93,12 +102,13 @@
     "category": "PostgreSQL",
     "description": "Dump a database to /tmp as a gzip-compressed file with today's date.",
     "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
       { "key": "database", "label": "Database name", "type": "text", "required": true }
     ],
     "steps": [
       {
         "label": "pg_dump | gzip",
-        "command": "sudo -u postgres pg_dump -d {{database}} | gzip > /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres bash -c \"pg_dump -d {{database}} | gzip > /tmp/{{database}}_\\$(date +%d_%m_%Y).sql.gz\" && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz\""
       },
       {
         "label": "Verify file",
@@ -149,12 +159,13 @@
     "category": "PostgreSQL",
     "description": "Kill all active connections to a specific database (required before drop).",
     "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
       { "key": "database", "label": "Database name", "type": "text", "required": true }
     ],
     "steps": [
       {
         "label": "pg_terminate_backend",
-        "command": "sudo -u postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\" && echo \"Done — remaining connections:\" && sudo -u postgres psql -c \"SELECT count(*) FROM pg_stat_activity WHERE datname = '{{database}}';\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\" && echo \"Done — remaining:\" && echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT count(*) FROM pg_stat_activity WHERE datname = '{{database}}';\""
       }
     ]
   },
@@ -164,16 +175,17 @@
     "category": "PostgreSQL",
     "description": "Terminate all connections then drop the database.",
     "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
       { "key": "database", "label": "Database name", "type": "text", "required": true }
     ],
     "steps": [
       {
         "label": "Terminate connections",
-        "command": "sudo -u postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
       },
       {
         "label": "Drop database",
-        "command": "sudo -u postgres psql -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
       }
     ]
   },
@@ -183,17 +195,18 @@
     "category": "PostgreSQL",
     "description": "Create a new database, optionally setting an owner.",
     "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
       { "key": "database", "label": "Database name", "type": "text", "required": true },
       { "key": "owner",    "label": "Owner role (leave blank for default)", "type": "text", "default": "" }
     ],
     "steps": [
       {
         "label": "CREATE DATABASE",
-        "command": "sudo -u postgres psql -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
       },
       {
         "label": "Verify database exists",
-        "command": "sudo -u postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname = '{{database}}';\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname = '{{database}}';\""
       }
     ]
   },
@@ -203,13 +216,14 @@
     "category": "PostgreSQL",
     "description": "Restore a plain .sql dump into an existing database.",
     "params": [
-      { "key": "database",    "label": "Target database", "type": "text", "required": true },
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
+      { "key": "database",    "label": "Target database",  "type": "text", "required": true },
       { "key": "backup_file", "label": "Path to .sql file", "type": "text", "required": true, "default": "/tmp/" }
     ],
     "steps": [
       {
         "label": "psql restore",
-        "command": "sudo -u postgres psql -d {{database}} -f {{backup_file}} && echo \"Restore complete: {{database}}\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -d {{database}} -f {{backup_file}} && echo \"Restore complete: {{database}}\""
       }
     ]
   },
@@ -219,13 +233,14 @@
     "category": "PostgreSQL",
     "description": "Restore a gzip-compressed .sql.gz backup into an existing database.",
     "params": [
-      { "key": "database",    "label": "Target database",     "type": "text", "required": true },
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
+      { "key": "database",    "label": "Target database",      "type": "text", "required": true },
       { "key": "backup_file", "label": "Path to .sql.gz file", "type": "text", "required": true, "default": "/backup/postgres/daily/" }
     ],
     "steps": [
       {
         "label": "gunzip | psql restore",
-        "command": "gunzip -c {{backup_file}} | sudo -u postgres psql -d {{database}} && echo \"Restore complete: {{database}}\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres bash -c \"gunzip -c {{backup_file}} | psql -d {{database}}\" && echo \"Restore complete: {{database}}\""
       }
     ]
   },
@@ -235,30 +250,31 @@
     "category": "PostgreSQL",
     "description": "Complete restore workflow: terminate connections → drop → create → restore. Handles both .sql and .sql.gz backup files.",
     "params": [
-      { "key": "database",    "label": "Database name",                   "type": "text", "required": true },
-      { "key": "backup_file", "label": "Path to backup file (.sql or .gz)","type": "text", "required": true, "default": "/backup/postgres/daily/" },
-      { "key": "owner",       "label": "DB owner (leave blank for default)","type": "text", "default": "" }
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
+      { "key": "database",    "label": "Database name",                    "type": "text", "required": true },
+      { "key": "backup_file", "label": "Path to backup file (.sql or .gz)", "type": "text", "required": true, "default": "/backup/postgres/daily/" },
+      { "key": "owner",       "label": "DB owner (leave blank for default)", "type": "text", "default": "" }
     ],
     "steps": [
       {
         "label": "1 — Terminate all connections",
-        "command": "sudo -u postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
       },
       {
         "label": "2 — Drop database",
-        "command": "sudo -u postgres psql -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
       },
       {
         "label": "3 — Create database",
-        "command": "sudo -u postgres psql -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
       },
       {
         "label": "4 — Restore backup",
-        "command": "if [[ '{{backup_file}}' == *.gz ]]; then gunzip -c {{backup_file}} | sudo -u postgres psql -d {{database}} && echo 'Restore complete (gz)'; else sudo -u postgres psql -d {{database}} -f {{backup_file}} && echo 'Restore complete (sql)'; fi"
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres bash -c \"if [[ '{{backup_file}}' == *.gz ]]; then gunzip -c {{backup_file}} | psql -d {{database}} && echo 'Restore complete (gz)'; else psql -d {{database}} -f {{backup_file}} && echo 'Restore complete (sql)'; fi\""
       },
       {
         "label": "5 — Verify database size",
-        "command": "sudo -u postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database WHERE datname = '{{database}}';\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database WHERE datname = '{{database}}';\""
       }
     ]
   },
@@ -268,12 +284,13 @@
     "category": "PostgreSQL",
     "description": "Run VACUUM ANALYZE on a database to reclaim space and update planner stats.",
     "params": [
+      { "key": "sudo_password", "label": "Sudo password", "type": "password", "required": true, "masked": true },
       { "key": "database", "label": "Database name", "type": "text", "required": true }
     ],
     "steps": [
       {
         "label": "VACUUM ANALYZE",
-        "command": "sudo -u postgres psql -d {{database}} -c \"VACUUM ANALYZE;\" && echo \"Done\""
+        "command": "echo '{{sudo_password}}' | sudo -Su postgres psql -d {{database}} -c \"VACUUM ANALYZE;\" && echo \"Done\""
       }
     ]
   },
