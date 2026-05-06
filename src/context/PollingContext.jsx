@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react'
-import { snapStatus } from '../lib/serverHealth'
+import { snapStatus, maxDiskPct, parseSizeToGb } from '../lib/serverHealth'
 
 const PollingContext = createContext(null)
 
@@ -75,6 +75,36 @@ export function PollingProvider({ children }) {
     prevRef.current = newSnaps
     setSnapshots(newSnaps)
     saveJson(CACHE_KEY, newSnaps)
+
+    // Persist to history API (fire-and-forget)
+    const histBatch = serverList.flatMap(s => {
+      const snap = newSnaps[s.id]
+      if (!snap) return []
+      const disks = snap.linux?.diskUsage || []
+      const worstDisk = disks.reduce((best, d) => {
+        const pct = parseInt(String(d.usePercent).replace('%', ''), 10) || 0
+        return pct > (best ? parseInt(String(best.usePercent).replace('%', ''), 10) || 0 : -1) ? d : best
+      }, null)
+      const memPct = snap.linux?.memory
+        ? (100 * snap.linux.memory.memUsedMb) / snap.linux.memory.memTotalMb
+        : null
+      return [{
+        serverId:    s.id,
+        capturedAt:  Date.now(),
+        cpuPct:      snap.linux?.cpuUsagePercent ?? null,
+        memPct,
+        diskPct:     maxDiskPct(snap),
+        diskUsedGb:  worstDisk ? parseSizeToGb(worstDisk.used) : null,
+        diskTotalGb: worstDisk ? parseSizeToGb(worstDisk.size) : null,
+      }]
+    })
+    if (histBatch.length) {
+      fetch(`${API_BASE}/history/batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(histBatch),
+      }).catch(() => {})
+    }
 
     if (newAlerts.length) {
       setAlerts(prev => {

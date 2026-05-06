@@ -5,6 +5,7 @@ import CertMonitor from './pages/CertMonitor';
 import DockerRegistry from './pages/DockerRegistry';
 import SentinelOps from './pages/SentinelOps';
 import ServerGrid from './pages/ServerGrid';
+import HistoryView from './pages/HistoryView';
 import { PollingProvider } from './context/PollingContext';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
             <Route path="/registry" element={<DockerRegistry />} />
             <Route path="/assistant" element={<SentinelOps />} />
             <Route path="/grid" element={<ServerGrid />} />
+          <Route path="/history" element={<HistoryView />} />
           </Routes>
         </Layout>
       </PollingProvider>

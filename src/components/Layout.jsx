@@ -6,6 +6,7 @@ const navItems = [
   { to: '/certs',     label: 'Cert Monitor',    icon: '🔒', end: false },
   { to: '/registry',  label: 'Docker Registry', icon: '🐳', end: false },
   { to: '/grid',      label: 'Server Grid',     icon: '⬡',  end: false, badge: true },
+  { to: '/history',   label: 'History',         icon: '📈', end: false },
   { to: '/assistant', label: 'AI Assistant',    icon: '🤖', end: false },
 ];
 

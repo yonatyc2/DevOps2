@@ -1,3 +1,15 @@
+export function parseSizeToGb(value) {
+  if (!value) return null
+  const m = String(value).trim().match(/^([0-9]*\.?[0-9]+)\s*([kKmMgGtTpP]?)i?[bB]?$/)
+  if (!m) return null
+  const num = Number(m[1])
+  if (!Number.isFinite(num)) return null
+  const unit = (m[2] || '').toUpperCase()
+  const factors = { '': 1 / (1024 ** 3), K: 1 / (1024 ** 2), M: 1 / 1024, G: 1, T: 1024, P: 1024 ** 2 }
+  const factor = Object.prototype.hasOwnProperty.call(factors, unit) ? factors[unit] : null
+  return factor != null ? num * factor : null
+}
+
 export const THRESH = {
   disk:     { warn: 70, crit: 85 },
   cpu:      { warn: 75, crit: 90 },
