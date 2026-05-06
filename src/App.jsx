@@ -5,19 +5,22 @@ import CertMonitor from './pages/CertMonitor';
 import DockerRegistry from './pages/DockerRegistry';
 import SentinelOps from './pages/SentinelOps';
 import ServerGrid from './pages/ServerGrid';
+import { PollingProvider } from './context/PollingContext';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<LogAnalyzer />} />
-          <Route path="/certs" element={<CertMonitor />} />
-          <Route path="/registry" element={<DockerRegistry />} />
-          <Route path="/assistant" element={<SentinelOps />} />
-          <Route path="/grid" element={<ServerGrid />} />
-        </Routes>
-      </Layout>
+      <PollingProvider>
+        <Layout>
+          <Routes>
+            <Route path="/" element={<LogAnalyzer />} />
+            <Route path="/certs" element={<CertMonitor />} />
+            <Route path="/registry" element={<DockerRegistry />} />
+            <Route path="/assistant" element={<SentinelOps />} />
+            <Route path="/grid" element={<ServerGrid />} />
+          </Routes>
+        </Layout>
+      </PollingProvider>
     </BrowserRouter>
   );
 }

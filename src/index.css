@@ -107,6 +107,7 @@ code, .mono {
   z-index: 100;
   height: 64px;
   display: flex;
+  flex-direction: row;
   align-items: center;
   padding: 0 28px;
   gap: 8px;
@@ -570,3 +571,74 @@ code, .mono {
   .layout-nav   { padding: 0 16px; gap: 4px; }
   .layout-brand span { display: none; }
 }
+
+/* ── Poll status bar (bottom of nav) ─────────────────────────── */
+.layout-poll-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 12px;
+  border-left: 1px solid var(--border);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.layout-poll-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-subtle);
+  flex-shrink: 0;
+  transition: background 200ms;
+}
+
+.layout-poll-dot--active {
+  background: var(--success);
+  box-shadow: 0 0 5px rgba(52, 211, 154, 0.6);
+  animation: poll-pulse 1s ease-in-out infinite;
+}
+
+@keyframes poll-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.layout-poll-label {
+  font-size: 0.68rem;
+  color: var(--text-subtle);
+  flex: 1;
+  white-space: nowrap;
+}
+
+.layout-poll-now {
+  background: none;
+  border: none;
+  color: var(--text-subtle);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: var(--radius-sm);
+  transition: color var(--fast);
+}
+.layout-poll-now:hover { color: var(--accent); }
+
+/* ── Alert badge on nav link ──────────────────────────────────── */
+.layout-alert-badge {
+  margin-left: auto;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--fast);
+}
+.layout-alert-badge:hover { background: #dc2626; }

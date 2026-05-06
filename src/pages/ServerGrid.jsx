@@ -1,57 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { usePolling } from '../context/PollingContext'
+import { THRESH, classify, maxDiskPct, maxContainerRestarts, snapStatus } from '../lib/serverHealth'
 import './ServerGrid.css'
 
-const API_BASE = '/api'
 const TREND_MAX = 20
 const TREND_KEY = (id) => `devops.trend.${id}`
-const BATCH_SIZE = 6
-
-const THRESH = {
-  disk:     { warn: 70, crit: 85 },
-  cpu:      { warn: 75, crit: 90 },
-  mem:      { warn: 80, crit: 90 },
-  restarts: { crit: 3 },
-}
-
-function classify(value, thresholds) {
-  if (value == null || !Number.isFinite(value)) return 'unknown'
-  if (thresholds.crit != null && value >= thresholds.crit) return 'crit'
-  if (thresholds.warn != null && value >= thresholds.warn) return 'warn'
-  return 'ok'
-}
-
-function maxDiskPct(snap) {
-  const disks = snap?.linux?.diskUsage || []
-  if (!disks.length) return null
-  return Math.max(...disks.map(d => parseInt(String(d.usePercent).replace('%', ''), 10) || 0))
-}
-
-function maxContainerRestarts(snap) {
-  const containers = snap?.docker?.containers || []
-  if (!containers.length) return 0
-  return Math.max(0, ...containers.map(c => c.restartCount || 0))
-}
-
-function cardStatus(snap) {
-  if (!snap) return 'offline'
-  const diskPct = maxDiskPct(snap)
-  const cpuPct = snap.linux?.cpuUsagePercent ?? null
-  const memPct = snap.linux?.memory
-    ? (100 * snap.linux.memory.memUsedMb) / snap.linux.memory.memTotalMb
-    : null
-  const maxRestarts = maxContainerRestarts(snap)
-
-  const statuses = [
-    classify(diskPct, THRESH.disk),
-    classify(cpuPct, THRESH.cpu),
-    classify(memPct, THRESH.mem),
-    maxRestarts >= THRESH.restarts.crit ? 'crit' : 'ok',
-  ]
-  if (statuses.includes('crit')) return 'crit'
-  if (statuses.includes('warn')) return 'warn'
-  return 'ok'
-}
 
 function loadTrend(serverId) {
   try {
@@ -121,7 +75,7 @@ function MetricBar({ value, thresholds, label }) {
 }
 
 function ServerCard({ server, snap, trend, loading, onClick }) {
-  const status = loading ? 'loading' : cardStatus(snap)
+  const status = loading ? 'loading' : snapStatus(snap)
   const diskPct = snap ? maxDiskPct(snap) : null
   const cpuPct  = snap?.linux?.cpuUsagePercent ?? null
   const memPct  = snap?.linux?.memory
@@ -233,104 +187,46 @@ function AlertsBanner({ servers, snapshots }) {
 
 export default function ServerGrid() {
   const navigate = useNavigate()
-  const [servers, setServers] = useState([])
-  const [snapshots, setSnapshots] = useState({})
+  const { servers, snapshots, polling, lastPolledAt, pollNow } = usePolling()
   const [trends, setTrends] = useState({})
-  const [pageLoading, setPageLoading] = useState(true)
-  const [loadingIds, setLoadingIds] = useState(new Set())
-  const [fetchedAt, setFetchedAt] = useState(null)
-  const abortRef = useRef(null)
 
-  const fetchSnapshotsBatched = useCallback(async (serverList, signal) => {
-    for (let i = 0; i < serverList.length; i += BATCH_SIZE) {
-      const batch = serverList.slice(i, i + BATCH_SIZE)
-      if (signal?.aborted) break
-
-      setLoadingIds(prev => new Set([...prev, ...batch.map(s => s.id)]))
-
-      const results = await Promise.allSettled(
-        batch.map(async (server) => {
-          const res = await fetch(
-            `${API_BASE}/snapshot?serverId=${encodeURIComponent(server.id)}`,
-            { signal }
-          )
-          if (!res.ok) return { id: server.id, snap: null }
-          const snap = await res.json()
-          return { id: server.id, snap }
-        })
-      )
-
-      if (signal?.aborted) break
-
-      setSnapshots(prev => {
-        const next = { ...prev }
-        for (const r of results) {
-          if (r.status === 'fulfilled' && r.value) next[r.value.id] = r.value.snap
-        }
-        return next
-      })
-
-      setTrends(prev => {
-        const next = { ...prev }
-        for (const r of results) {
-          if (r.status !== 'fulfilled' || !r.value?.snap) continue
-          const { id, snap } = r.value
-          const entry = {
-            ts:   Date.now(),
-            cpu:  snap.linux?.cpuUsagePercent ?? null,
-            disk: maxDiskPct(snap),
-            mem:  snap.linux?.memory
-              ? (100 * snap.linux.memory.memUsedMb) / snap.linux.memory.memTotalMb
-              : null,
-          }
-          next[id] = parseTrends(saveTrend(id, entry))
-        }
-        return next
-      })
-
-      setLoadingIds(prev => {
-        const next = new Set(prev)
-        batch.forEach(s => next.delete(s.id))
-        return next
-      })
-    }
-    setFetchedAt(new Date())
-  }, [])
-
-  const loadAll = useCallback(async () => {
-    if (abortRef.current) abortRef.current.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    setPageLoading(true)
-    let serverList = []
-    try {
-      const res = await fetch(`${API_BASE}/servers`)
-      if (res.ok) serverList = (await res.json()) || []
-    } catch {}
-    setServers(serverList)
-
+  // Load trends from localStorage on mount and whenever servers change
+  useEffect(() => {
+    if (!servers.length) return
     const initialTrends = {}
-    for (const server of serverList) {
+    for (const server of servers) {
       initialTrends[server.id] = parseTrends(loadTrend(server.id))
     }
     setTrends(initialTrends)
-    setPageLoading(false)
+  }, [servers])
 
-    await fetchSnapshotsBatched(serverList, controller.signal)
-  }, [fetchSnapshotsBatched])
-
+  // Append new snapshot data to trends whenever snapshots change
   useEffect(() => {
-    loadAll()
-    return () => abortRef.current?.abort()
-  }, [loadAll])
+    if (!Object.keys(snapshots).length) return
+    setTrends(prev => {
+      const next = { ...prev }
+      for (const [id, snap] of Object.entries(snapshots)) {
+        if (!snap) continue
+        const entry = {
+          ts:   Date.now(),
+          cpu:  snap.linux?.cpuUsagePercent ?? null,
+          disk: maxDiskPct(snap),
+          mem:  snap.linux?.memory
+            ? (100 * snap.linux.memory.memUsedMb) / snap.linux.memory.memTotalMb
+            : null,
+        }
+        next[id] = parseTrends(saveTrend(id, entry))
+      }
+      return next
+    })
+  }, [snapshots])
 
   const handleCardClick = (server) => {
     sessionStorage.setItem('sentinelops.selectedServer', server.id)
     navigate('/assistant')
   }
 
-  if (pageLoading) {
+  if (!servers.length && polling) {
     return <div className="sg-page"><p className="sg-loading-main">Loading servers…</p></div>
   }
 
@@ -339,16 +235,16 @@ export default function ServerGrid() {
       <div className="sg-toolbar">
         <h1 className="sg-title">Server Grid</h1>
         <div className="sg-toolbar-right">
-          {fetchedAt && (
-            <span className="sg-fetched-at">Updated {fetchedAt.toLocaleTimeString()}</span>
+          {lastPolledAt && (
+            <span className="sg-fetched-at">Updated {lastPolledAt.toLocaleTimeString()}</span>
           )}
           <button
             type="button"
             className="sg-refresh-btn"
-            onClick={loadAll}
-            disabled={loadingIds.size > 0}
+            onClick={pollNow}
+            disabled={polling}
           >
-            {loadingIds.size > 0 ? `Fetching ${loadingIds.size}…` : 'Refresh all'}
+            {polling ? 'Polling…' : 'Refresh all'}
           </button>
         </div>
       </div>
@@ -362,11 +258,11 @@ export default function ServerGrid() {
             server={server}
             snap={snapshots[server.id]}
             trend={trends[server.id] || {}}
-            loading={loadingIds.has(server.id) && !snapshots[server.id]}
+            loading={polling && !snapshots[server.id]}
             onClick={() => handleCardClick(server)}
           />
         ))}
-        {servers.length === 0 && (
+        {servers.length === 0 && !polling && (
           <p className="sg-empty">No servers configured. Add some in the AI Assistant.</p>
         )}
       </div>
