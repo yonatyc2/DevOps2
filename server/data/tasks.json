@@ -8,7 +8,7 @@
     "steps": [
       {
         "label": "Connections by database + state",
-        "command": "psql -U postgres -c \"SELECT datname, state, count(*) FROM pg_stat_activity WHERE pid <> pg_backend_pid() GROUP BY datname, state ORDER BY datname, state;\""
+        "command": "sudo -u postgres psql -c \"SELECT datname, state, count(*) FROM pg_stat_activity WHERE pid <> pg_backend_pid() GROUP BY datname, state ORDER BY datname, state;\""
       }
     ]
   },
@@ -21,7 +21,7 @@
     "steps": [
       {
         "label": "Query pg_database_size",
-        "command": "psql -U postgres -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database ORDER BY pg_database_size(datname) DESC;\""
+        "command": "sudo -u postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database ORDER BY pg_database_size(datname) DESC;\""
       }
     ]
   },
@@ -36,7 +36,7 @@
     "steps": [
       {
         "label": "Query pg_total_relation_size",
-        "command": "psql -U postgres -d {{database}} -c \"SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size FROM pg_tables ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC LIMIT 20;\""
+        "command": "sudo -u postgres psql -d {{database}} -c \"SELECT schemaname, tablename, pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS size FROM pg_tables ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC LIMIT 20;\""
       }
     ]
   },
@@ -51,7 +51,7 @@
     "steps": [
       {
         "label": "Find slow queries",
-        "command": "psql -U postgres -c \"SELECT pid, now() - query_start AS duration, left(query, 120) AS query FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '{{minutes}} minutes' ORDER BY duration DESC;\""
+        "command": "sudo -u postgres psql -c \"SELECT pid, now() - query_start AS duration, left(query, 120) AS query FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '{{minutes}} minutes' ORDER BY duration DESC;\""
       }
     ]
   },
@@ -64,7 +64,7 @@
     "steps": [
       {
         "label": "Query lock contention",
-        "command": "psql -U postgres -c \"SELECT bl.pid AS blocked_pid, a.query AS blocked_query, kl.pid AS lock_holder_pid, ka.query AS lock_holder_query FROM pg_catalog.pg_locks bl JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid JOIN pg_catalog.pg_locks kl ON kl.transactionid = bl.transactionid AND kl.pid != bl.pid JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid WHERE NOT bl.granted;\""
+        "command": "sudo -u postgres psql -c \"SELECT bl.pid AS blocked_pid, a.query AS blocked_query, kl.pid AS lock_holder_pid, ka.query AS lock_holder_query FROM pg_catalog.pg_locks bl JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid JOIN pg_catalog.pg_locks kl ON kl.transactionid = bl.transactionid AND kl.pid != bl.pid JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid WHERE NOT bl.granted;\""
       }
     ]
   },
@@ -79,7 +79,7 @@
     "steps": [
       {
         "label": "pg_dump to /tmp",
-        "command": "pg_dump -U postgres -d {{database}} -f /tmp/{{database}}_$(date +%d_%m_%Y).sql && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql\""
+        "command": "sudo -u postgres pg_dump -d {{database}} -f /tmp/{{database}}_$(date +%d_%m_%Y).sql && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql\""
       },
       {
         "label": "Verify file",
@@ -98,7 +98,7 @@
     "steps": [
       {
         "label": "pg_dump | gzip",
-        "command": "pg_dump -U postgres -d {{database}} | gzip > /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz\""
+        "command": "sudo -u postgres pg_dump -d {{database}} | gzip > /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz\""
       },
       {
         "label": "Verify file",
@@ -154,7 +154,7 @@
     "steps": [
       {
         "label": "pg_terminate_backend",
-        "command": "psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\" && echo \"Done — remaining connections:\" && psql -U postgres -c \"SELECT count(*) FROM pg_stat_activity WHERE datname = '{{database}}';\""
+        "command": "sudo -u postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\" && echo \"Done — remaining connections:\" && sudo -u postgres psql -c \"SELECT count(*) FROM pg_stat_activity WHERE datname = '{{database}}';\""
       }
     ]
   },
@@ -169,11 +169,11 @@
     "steps": [
       {
         "label": "Terminate connections",
-        "command": "psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
+        "command": "sudo -u postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
       },
       {
         "label": "Drop database",
-        "command": "psql -U postgres -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
+        "command": "sudo -u postgres psql -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
       }
     ]
   },
@@ -189,11 +189,11 @@
     "steps": [
       {
         "label": "CREATE DATABASE",
-        "command": "psql -U postgres -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
+        "command": "sudo -u postgres psql -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
       },
       {
         "label": "Verify database exists",
-        "command": "psql -U postgres -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname = '{{database}}';\""
+        "command": "sudo -u postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname = '{{database}}';\""
       }
     ]
   },
@@ -209,7 +209,7 @@
     "steps": [
       {
         "label": "psql restore",
-        "command": "psql -U postgres -d {{database}} -f {{backup_file}} && echo \"Restore complete: {{database}}\""
+        "command": "sudo -u postgres psql -d {{database}} -f {{backup_file}} && echo \"Restore complete: {{database}}\""
       }
     ]
   },
@@ -225,7 +225,7 @@
     "steps": [
       {
         "label": "gunzip | psql restore",
-        "command": "gunzip -c {{backup_file}} | psql -U postgres -d {{database}} && echo \"Restore complete: {{database}}\""
+        "command": "gunzip -c {{backup_file}} | sudo -u postgres psql -d {{database}} && echo \"Restore complete: {{database}}\""
       }
     ]
   },
@@ -242,23 +242,23 @@
     "steps": [
       {
         "label": "1 — Terminate all connections",
-        "command": "psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
+        "command": "sudo -u postgres psql -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
       },
       {
         "label": "2 — Drop database",
-        "command": "psql -U postgres -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
+        "command": "sudo -u postgres psql -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
       },
       {
         "label": "3 — Create database",
-        "command": "psql -U postgres -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
+        "command": "sudo -u postgres psql -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
       },
       {
         "label": "4 — Restore backup",
-        "command": "if [[ '{{backup_file}}' == *.gz ]]; then gunzip -c {{backup_file}} | psql -U postgres -d {{database}} && echo 'Restore complete (gz)'; else psql -U postgres -d {{database}} -f {{backup_file}} && echo 'Restore complete (sql)'; fi"
+        "command": "if [[ '{{backup_file}}' == *.gz ]]; then gunzip -c {{backup_file}} | sudo -u postgres psql -d {{database}} && echo 'Restore complete (gz)'; else sudo -u postgres psql -d {{database}} -f {{backup_file}} && echo 'Restore complete (sql)'; fi"
       },
       {
         "label": "5 — Verify database size",
-        "command": "psql -U postgres -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database WHERE datname = '{{database}}';\""
+        "command": "sudo -u postgres psql -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database WHERE datname = '{{database}}';\""
       }
     ]
   },
@@ -273,7 +273,7 @@
     "steps": [
       {
         "label": "VACUUM ANALYZE",
-        "command": "psql -U postgres -d {{database}} -c \"VACUUM ANALYZE;\" && echo \"Done\""
+        "command": "sudo -u postgres psql -d {{database}} -c \"VACUUM ANALYZE;\" && echo \"Done\""
       }
     ]
   },
