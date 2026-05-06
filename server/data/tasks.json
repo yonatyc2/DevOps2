@@ -3,12 +3,12 @@
     "id": "pg-connections",
     "name": "Active Connections",
     "category": "PostgreSQL",
-    "description": "Show active PostgreSQL connections grouped by state.",
+    "description": "Show all active connections grouped by database and state.",
     "params": [],
     "steps": [
       {
-        "label": "Query pg_stat_activity",
-        "command": "psql -U postgres -c \"SELECT count(*), state FROM pg_stat_activity GROUP BY state;\""
+        "label": "Connections by database + state",
+        "command": "psql -U postgres -c \"SELECT datname, state, count(*) FROM pg_stat_activity WHERE pid <> pg_backend_pid() GROUP BY datname, state ORDER BY datname, state;\""
       }
     ]
   },
@@ -56,6 +56,213 @@
     ]
   },
   {
+    "id": "pg-locks",
+    "name": "Check Locks",
+    "category": "PostgreSQL",
+    "description": "Show blocked queries and the lock holders blocking them.",
+    "params": [],
+    "steps": [
+      {
+        "label": "Query lock contention",
+        "command": "psql -U postgres -c \"SELECT bl.pid AS blocked_pid, a.query AS blocked_query, kl.pid AS lock_holder_pid, ka.query AS lock_holder_query FROM pg_catalog.pg_locks bl JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid JOIN pg_catalog.pg_locks kl ON kl.transactionid = bl.transactionid AND kl.pid != bl.pid JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid WHERE NOT bl.granted;\""
+      }
+    ]
+  },
+  {
+    "id": "pg-backup",
+    "name": "Backup Database",
+    "category": "PostgreSQL",
+    "description": "Dump a database to /tmp as a plain SQL file with today's date in the filename.",
+    "params": [
+      { "key": "database", "label": "Database name", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "pg_dump to /tmp",
+        "command": "pg_dump -U postgres -d {{database}} -f /tmp/{{database}}_$(date +%d_%m_%Y).sql && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql\""
+      },
+      {
+        "label": "Verify file",
+        "command": "ls -lh /tmp/{{database}}_$(date +%d_%m_%Y).sql"
+      }
+    ]
+  },
+  {
+    "id": "pg-backup-gz",
+    "name": "Backup Database (Compressed)",
+    "category": "PostgreSQL",
+    "description": "Dump a database to /tmp as a gzip-compressed file with today's date.",
+    "params": [
+      { "key": "database", "label": "Database name", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "pg_dump | gzip",
+        "command": "pg_dump -U postgres -d {{database}} | gzip > /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz && echo \"Saved: /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz\""
+      },
+      {
+        "label": "Verify file",
+        "command": "ls -lh /tmp/{{database}}_$(date +%d_%m_%Y).sql.gz"
+      }
+    ]
+  },
+  {
+    "id": "pg-copy-backup",
+    "name": "Copy Backup to Another Server",
+    "category": "PostgreSQL",
+    "description": "SCP a backup file from this server to another server's /tmp directory.",
+    "params": [
+      { "key": "backup_file",   "label": "Source file path",          "type": "text", "required": true,  "default": "/backup/postgres/daily/" },
+      { "key": "target_server", "label": "Target server IP",          "type": "text", "required": true  },
+      { "key": "target_user",   "label": "SSH user on target",        "type": "text", "required": true,  "default": "equals" },
+      { "key": "target_path",   "label": "Destination path on target","type": "text", "required": true,  "default": "/tmp" }
+    ],
+    "steps": [
+      {
+        "label": "scp file",
+        "command": "scp {{backup_file}} {{target_user}}@{{target_server}}:{{target_path}} && echo \"Copied to {{target_server}}:{{target_path}}\""
+      }
+    ]
+  },
+  {
+    "id": "pg-list-backups",
+    "name": "List Available Backups",
+    "category": "PostgreSQL",
+    "description": "Show backup files in the daily backup directory sorted by date.",
+    "params": [
+      { "key": "backup_dir", "label": "Backup directory", "type": "text", "default": "/backup/postgres/daily", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "List backup files",
+        "command": "ls -lht {{backup_dir}} 2>/dev/null | head -30 || echo 'Directory not found or empty'"
+      },
+      {
+        "label": "Disk usage of backup dir",
+        "command": "du -sh {{backup_dir}} 2>/dev/null || echo 'N/A'"
+      }
+    ]
+  },
+  {
+    "id": "pg-terminate",
+    "name": "Terminate DB Connections",
+    "category": "PostgreSQL",
+    "description": "Kill all active connections to a specific database (required before drop).",
+    "params": [
+      { "key": "database", "label": "Database name", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "pg_terminate_backend",
+        "command": "psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\" && echo \"Done — remaining connections:\" && psql -U postgres -c \"SELECT count(*) FROM pg_stat_activity WHERE datname = '{{database}}';\""
+      }
+    ]
+  },
+  {
+    "id": "pg-drop",
+    "name": "Drop Database",
+    "category": "PostgreSQL",
+    "description": "Terminate all connections then drop the database.",
+    "params": [
+      { "key": "database", "label": "Database name", "type": "text", "required": true }
+    ],
+    "steps": [
+      {
+        "label": "Terminate connections",
+        "command": "psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
+      },
+      {
+        "label": "Drop database",
+        "command": "psql -U postgres -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
+      }
+    ]
+  },
+  {
+    "id": "pg-create",
+    "name": "Create Database",
+    "category": "PostgreSQL",
+    "description": "Create a new database, optionally setting an owner.",
+    "params": [
+      { "key": "database", "label": "Database name", "type": "text", "required": true },
+      { "key": "owner",    "label": "Owner role (leave blank for default)", "type": "text", "default": "" }
+    ],
+    "steps": [
+      {
+        "label": "CREATE DATABASE",
+        "command": "psql -U postgres -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
+      },
+      {
+        "label": "Verify database exists",
+        "command": "psql -U postgres -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) FROM pg_database WHERE datname = '{{database}}';\""
+      }
+    ]
+  },
+  {
+    "id": "pg-restore-sql",
+    "name": "Restore from SQL File",
+    "category": "PostgreSQL",
+    "description": "Restore a plain .sql dump into an existing database.",
+    "params": [
+      { "key": "database",    "label": "Target database", "type": "text", "required": true },
+      { "key": "backup_file", "label": "Path to .sql file", "type": "text", "required": true, "default": "/tmp/" }
+    ],
+    "steps": [
+      {
+        "label": "psql restore",
+        "command": "psql -U postgres -d {{database}} -f {{backup_file}} && echo \"Restore complete: {{database}}\""
+      }
+    ]
+  },
+  {
+    "id": "pg-restore-gz",
+    "name": "Restore from Compressed Backup",
+    "category": "PostgreSQL",
+    "description": "Restore a gzip-compressed .sql.gz backup into an existing database.",
+    "params": [
+      { "key": "database",    "label": "Target database",     "type": "text", "required": true },
+      { "key": "backup_file", "label": "Path to .sql.gz file", "type": "text", "required": true, "default": "/backup/postgres/daily/" }
+    ],
+    "steps": [
+      {
+        "label": "gunzip | psql restore",
+        "command": "gunzip -c {{backup_file}} | psql -U postgres -d {{database}} && echo \"Restore complete: {{database}}\""
+      }
+    ]
+  },
+  {
+    "id": "pg-full-restore",
+    "name": "Full DB Restore",
+    "category": "PostgreSQL",
+    "description": "Complete restore workflow: terminate connections → drop → create → restore. Handles both .sql and .sql.gz backup files.",
+    "params": [
+      { "key": "database",    "label": "Database name",                   "type": "text", "required": true },
+      { "key": "backup_file", "label": "Path to backup file (.sql or .gz)","type": "text", "required": true, "default": "/backup/postgres/daily/" },
+      { "key": "owner",       "label": "DB owner (leave blank for default)","type": "text", "default": "" }
+    ],
+    "steps": [
+      {
+        "label": "1 — Terminate all connections",
+        "command": "psql -U postgres -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '{{database}}';\""
+      },
+      {
+        "label": "2 — Drop database",
+        "command": "psql -U postgres -c \"DROP DATABASE IF EXISTS {{database}};\" && echo \"Dropped: {{database}}\""
+      },
+      {
+        "label": "3 — Create database",
+        "command": "psql -U postgres -c \"CREATE DATABASE {{database}}$([ -n '{{owner}}' ] && echo ' OWNER {{owner}}' || true);\" && echo \"Created: {{database}}\""
+      },
+      {
+        "label": "4 — Restore backup",
+        "command": "if [[ '{{backup_file}}' == *.gz ]]; then gunzip -c {{backup_file}} | psql -U postgres -d {{database}} && echo 'Restore complete (gz)'; else psql -U postgres -d {{database}} -f {{backup_file}} && echo 'Restore complete (sql)'; fi"
+      },
+      {
+        "label": "5 — Verify database size",
+        "command": "psql -U postgres -c \"SELECT datname, pg_size_pretty(pg_database_size(datname)) AS size FROM pg_database WHERE datname = '{{database}}';\""
+      }
+    ]
+  },
+  {
     "id": "pg-vacuum",
     "name": "Vacuum Analyze",
     "category": "PostgreSQL",
@@ -65,21 +272,8 @@
     ],
     "steps": [
       {
-        "label": "Run VACUUM ANALYZE",
-        "command": "psql -U postgres -d {{database}} -c \"VACUUM ANALYZE;\""
-      }
-    ]
-  },
-  {
-    "id": "pg-locks",
-    "name": "Check Locks",
-    "category": "PostgreSQL",
-    "description": "Show blocked queries and lock holders.",
-    "params": [],
-    "steps": [
-      {
-        "label": "Query pg_locks + pg_stat_activity",
-        "command": "psql -U postgres -c \"SELECT bl.pid AS blocked_pid, a.query AS blocked_query, kl.pid AS lock_holder_pid, ka.query AS lock_holder_query FROM pg_catalog.pg_locks bl JOIN pg_catalog.pg_stat_activity a ON bl.pid = a.pid JOIN pg_catalog.pg_locks kl ON kl.transactionid = bl.transactionid AND kl.pid != bl.pid JOIN pg_catalog.pg_stat_activity ka ON kl.pid = ka.pid WHERE NOT bl.granted;\""
+        "label": "VACUUM ANALYZE",
+        "command": "psql -U postgres -d {{database}} -c \"VACUUM ANALYZE;\" && echo \"Done\""
       }
     ]
   },
@@ -247,7 +441,7 @@
     "category": "Disk",
     "description": "Find files larger than a given size under a path.",
     "params": [
-      { "key": "path", "label": "Search path", "type": "text", "default": "/var", "required": true },
+      { "key": "path", "label": "Search path",  "type": "text",   "default": "/var", "required": true },
       { "key": "size", "label": "Min size (MB)", "type": "number", "default": "100" }
     ],
     "steps": [
@@ -331,7 +525,7 @@
     "category": "Network",
     "description": "Test ICMP connectivity to a remote host.",
     "params": [
-      { "key": "host",  "label": "Hostname / IP", "type": "text", "required": true },
+      { "key": "host",  "label": "Hostname / IP", "type": "text",   "required": true },
       { "key": "count", "label": "Packet count",  "type": "number", "default": "4" }
     ],
     "steps": [
