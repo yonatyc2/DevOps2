@@ -17,7 +17,7 @@ const PIPELINE = [
   { id: 'verify-tgt',  label: 'Verify restored database',        server: 'target' },
 ]
 
-function buildCommand(stepId, { srcDb, srcPwd, tgtDb, tgtPwd, targetHost, sshUser }) {
+function buildCommand(stepId, { srcDb, srcPwd, tgtDb, tgtPwd, targetHost, sshUser, sshPwd }) {
   const file = `/tmp/${srcDb}_${DATE_EXPR}.sql`
   const q = s => s.replace(/'/g, "'\\''") // escape single quotes for shell
 
@@ -27,7 +27,7 @@ function buildCommand(stepId, { srcDb, srcPwd, tgtDb, tgtPwd, targetHost, sshUse
     case 'verify-src':
       return `ls -lh /tmp/${srcDb}_${DATE_EXPR}.sql`
     case 'scp':
-      return `scp ${file} ${sshUser}@${targetHost}:/tmp/ && echo "Copied to ${targetHost}:/tmp/"`
+      return `sshpass -p '${q(sshPwd)}' scp -o StrictHostKeyChecking=no ${file} ${sshUser}@${targetHost}:/tmp/ && echo "Copied to ${targetHost}:/tmp/"`
     case 'terminate':
       return `echo '${q(tgtPwd)}' | sudo -Su postgres psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '${tgtDb}';"`
     case 'drop':
@@ -89,9 +89,10 @@ export default function BackupRestore() {
   const [tgtServerId, setTgtServerId] = useState('')
   const [srcDb,  setSrcDb]  = useState('')
   const [tgtDb,  setTgtDb]  = useState('')
-  const [srcPwd, setSrcPwd] = useState('')
-  const [tgtPwd, setTgtPwd] = useState('')
+  const [srcPwd,  setSrcPwd]  = useState('')
+  const [tgtPwd,  setTgtPwd]  = useState('')
   const [sshUser, setSshUser] = useState('equals')
+  const [sshPwd,  setSshPwd]  = useState('')
 
   const [results,     setResults]     = useState(new Array(PIPELINE.length).fill(null))
   const [runningStep, setRunningStep] = useState(null)
@@ -111,11 +112,14 @@ export default function BackupRestore() {
       tgtPwd:     tgtPwd || srcPwd,
       targetHost,
       sshUser:    sshUser.trim() || 'equals',
+      sshPwd,
     }
   }
 
   function canRunStep(step) {
     const f = getFields()
+    if (step.id === 'scp')
+      return !!srcServerId && !!f.srcDb && !!f.srcPwd && !!f.sshPwd && !!f.targetHost
     if (step.server === 'source')
       return !!srcServerId && !!f.srcDb && !!f.srcPwd
     return !!tgtServerId && !!f.tgtDb && !!f.tgtPwd && !!f.targetHost
@@ -129,7 +133,7 @@ export default function BackupRestore() {
     const fields = getFields()
     const command  = buildCommand(step.id, fields)
     const serverId = step.server === 'source' ? srcServerId : tgtServerId
-    const masked   = [fields.srcPwd, fields.tgtPwd].filter(Boolean)
+    const masked   = [fields.srcPwd, fields.tgtPwd, fields.sshPwd].filter(Boolean)
 
     setRunningStep(index)
     setResults(prev => { const n = [...prev]; n[index] = null; return n })
@@ -221,6 +225,10 @@ export default function BackupRestore() {
           <div className="br-field-row">
             <label className="br-label">SSH user (SCP)</label>
             <input className="br-input" type="text" value={sshUser} onChange={e => setSshUser(e.target.value)} placeholder="equals" />
+          </div>
+          <div className="br-field-row">
+            <label className="br-label">SSH password (SCP) <span className="br-req">*</span></label>
+            <input className="br-input" type="password" value={sshPwd} onChange={e => setSshPwd(e.target.value)} autoComplete="current-password" />
           </div>
         </div>
 
