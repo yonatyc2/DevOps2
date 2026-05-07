@@ -259,7 +259,8 @@
   overflow-y: auto;
   line-height: 1.5;
 }
-.rt-output--err { color: var(--danger); }
+.rt-output--err  { color: var(--danger); }
+.rt-output--warn { color: var(--text-subtle); font-size: 0.68rem; max-height: 80px; }
 
 /* ── States ───────────────────────────────────────────────────── */
 

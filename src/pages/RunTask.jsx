@@ -4,6 +4,20 @@ import { usePolling } from '../context/PollingContext'
 import ServerSelect from '../components/ServerSelect'
 import './RunTask.css'
 
+function filterStderr(raw) {
+  if (!raw) return ''
+  return raw.split('\n').filter(line => {
+    const l = line.trim()
+    if (!l) return false
+    if (l.startsWith('[sudo]')) return false
+    if (/^[#\s]+$/.test(l)) return false
+    if (l.includes('private server') || l.includes('monitored and recorded')) return false
+    if (l.includes('Disconnect IMMEDIATELY') || l.includes('authorized user')) return false
+    if (l.includes('debconf:') || l.includes('dpkg-preconfigure')) return false
+    return true
+  }).join('\n').trim()
+}
+
 function ParamField({ param, value, onChange }) {
   const common = {
     id: param.key,
@@ -51,7 +65,10 @@ function StepOutput({ step, result, running, index, onRun, disabled }) {
         <pre className="rt-cmd">$ {result.command}</pre>
       )}
       {result?.output && (
-        <pre className="rt-output">{result.output}</pre>
+        <pre className="rt-output">{result.output.trim()}</pre>
+      )}
+      {filterStderr(result?.stderr) && (
+        <pre className="rt-output rt-output--warn">{filterStderr(result.stderr)}</pre>
       )}
       {result?.error && (
         <pre className="rt-output rt-output--err">{result.error}</pre>
@@ -123,7 +140,9 @@ export default function RunTask() {
       const body = await r.json()
       setResults(prev => {
         const next = [...prev]
-        next[index] = r.ok ? { output: body.output, command: body.command } : { error: body.error || r.statusText }
+        next[index] = r.ok
+          ? { output: body.output, stderr: body.stderr, exitCode: body.exitCode, command: body.command }
+          : { error: body.error || r.statusText }
         return next
       })
       return r.ok

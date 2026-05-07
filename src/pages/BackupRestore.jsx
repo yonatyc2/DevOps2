@@ -6,6 +6,58 @@ import './BackupRestore.css'
 
 const DATE_EXPR = '$(date +%d_%m_%Y)'
 
+function filterStderr(raw) {
+  if (!raw) return ''
+  return raw.split('\n').filter(line => {
+    const l = line.trim()
+    if (!l) return false
+    if (l.startsWith('[sudo]')) return false
+    if (/^[#\s]+$/.test(l)) return false
+    if (l.includes('private server')) return false
+    if (l.includes('monitored and recorded')) return false
+    if (l.includes('Disconnect IMMEDIATELY')) return false
+    if (l.includes('authorized user')) return false
+    if (l.includes('debconf:')) return false
+    if (l.includes('dpkg-preconfigure')) return false
+    return true
+  }).join('\n').trim()
+}
+
+function summarize(stepId, output) {
+  if (!output) return ''
+  const out = output.trim()
+  switch (stepId) {
+    case 'backup': {
+      const m = out.match(/Done:\s*(\S+\.sql)/)
+      return m ? `Saved to ${m[1]}` : ''
+    }
+    case 'verify-src':
+    case 'verify-tgt': {
+      const m = out.match(/\s(\d+[\.,]?\d*[KMG])\s/)
+      return m ? `File size: ${m[1]}` : ''
+    }
+    case 'scp': {
+      const m = out.match(/Copied to .+/)
+      return m ? m[0] : ''
+    }
+    case 'terminate': {
+      const rows = (out.match(/\bt\b/g) || []).length
+      return rows > 0 ? `${rows} connection${rows !== 1 ? 's' : ''} terminated` : 'No active connections'
+    }
+    case 'drop':
+      return out.split('\n').filter(l => l.startsWith('Dropped:')).join('') || ''
+    case 'create':
+      return out.split('\n').filter(l => l.startsWith('Created:')).join('') || ''
+    case 'restore': {
+      const tables = (out.match(/CREATE TABLE/g) || []).length
+      const rows   = [...out.matchAll(/COPY (\d+)/g)].reduce((s, m) => s + parseInt(m[1]), 0)
+      return tables > 0 ? `${tables} table${tables !== 1 ? 's' : ''} restored · ${rows.toLocaleString()} rows imported` : ''
+    }
+    default:
+      return ''
+  }
+}
+
 const PIPELINE = [
   { id: 'backup',      label: 'Backup source database',          server: 'source' },
   { id: 'verify-src',  label: 'Verify backup file on source',    server: 'source' },
@@ -45,8 +97,11 @@ function buildCommand(stepId, { srcDb, srcPwd, tgtDb, tgtPwd, targetHost, sshUse
 
 function StepRow({ step, index, result, running, canRun, runningAll, onRun, srcServer, tgtServer }) {
   const serverName = step.server === 'source'
-    ? (srcServer?.name || srcServer?.host || '—')
-    : (tgtServer?.name || tgtServer?.host || '—')
+    ? (srcServer?.displayName || srcServer?.name || srcServer?.host || '—')
+    : (tgtServer?.displayName || tgtServer?.name || tgtServer?.host || '—')
+
+  const summary    = result && !result.error ? summarize(step.id, result.output) : ''
+  const cleanStderr = filterStderr(result?.stderr)
 
   return (
     <div className={`br-step ${result ? (result.error ? 'br-step--err' : 'br-step--ok') : ''} ${running ? 'br-step--running' : ''}`}>
@@ -73,8 +128,10 @@ function StepRow({ step, index, result, running, canRun, runningAll, onRun, srcS
         </button>
       </div>
       {result?.command && <pre className="br-cmd">$ {result.command}</pre>}
-      {result?.output  && <pre className="br-output">{result.output}</pre>}
-      {result?.error   && <pre className="br-output br-output--err">{result.error}</pre>}
+      {summary && <div className="br-summary">{summary}</div>}
+      {result?.output && <pre className="br-output">{result.output.trim()}</pre>}
+      {cleanStderr    && <pre className="br-output br-output--warn">{cleanStderr}</pre>}
+      {result?.error  && <pre className="br-output br-output--err">{result.error}</pre>}
     </div>
   )
 }
@@ -148,7 +205,7 @@ export default function BackupRestore() {
       setResults(prev => {
         const n = [...prev]
         n[index] = r.ok
-          ? { output: body.output, command: body.command }
+          ? { output: body.output, stderr: body.stderr, exitCode: body.exitCode, command: body.command }
           : { error: body.error || r.statusText }
         return n
       })

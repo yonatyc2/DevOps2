@@ -35,7 +35,12 @@ router.post('/run', async (req, res) => {
     })
     const body = await r.json()
     if (!r.ok) return res.status(r.status).json({ error: body.error || r.statusText })
-    res.json({ output: body.output ?? body.result ?? JSON.stringify(body), command: displayCommand })
+    res.json({
+      output:   body.stdout  ?? body.output ?? body.result ?? '',
+      stderr:   body.stderr  ?? '',
+      exitCode: body.exitCode ?? 0,
+      command:  displayCommand,
+    })
   } catch (err) {
     res.status(502).json({ error: `Spring Boot unreachable: ${err.message}` })
   }
@@ -73,7 +78,12 @@ router.post('/step', async (req, res) => {
     });
     const body = await r.json();
     if (!r.ok) return res.status(r.status).json({ error: body.error || r.statusText });
-    res.json({ output: body.output ?? body.result ?? JSON.stringify(body), command: displayCommand });
+    res.json({
+      output:   body.stdout  ?? body.output ?? body.result ?? '',
+      stderr:   body.stderr  ?? '',
+      exitCode: body.exitCode ?? 0,
+      command:  displayCommand,
+    });
   } catch (err) {
     res.status(502).json({ error: `Spring Boot unreachable: ${err.message}` });
   }

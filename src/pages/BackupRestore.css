@@ -308,4 +308,14 @@
   overflow-y: auto;
   line-height: 1.5;
 }
-.br-output--err { color: var(--danger); }
+.br-output--err  { color: var(--danger); }
+.br-output--warn { color: var(--text-subtle); font-size: 0.68rem; max-height: 80px; }
+
+.br-summary {
+  padding: 5px 12px 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--success);
+  background: rgba(52,211,154,0.06);
+  border-top: 1px solid var(--border);
+}
