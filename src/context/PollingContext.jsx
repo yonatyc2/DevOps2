@@ -3,9 +3,10 @@ import { snapStatus, maxDiskPct, parseSizeToGb } from '../lib/serverHealth'
 
 const PollingContext = createContext(null)
 
-const API_BASE      = '/api'
-const POLL_MS       = 5 * 60 * 1000   // 5 minutes
-const BATCH_SIZE    = 6
+const API_BASE           = '/api'
+const POLL_MS            = 5 * 60 * 1000   // 5 minutes
+const SERVER_REFRESH_MS  = 30 * 1000        // 30 seconds
+const BATCH_SIZE         = 6
 const CACHE_KEY     = 'devops.poll.snapshots'
 const ALERTS_KEY    = 'devops.poll.alerts'
 const STATUS_RANK   = { ok: 0, unknown: 0, warn: 1, crit: 2, offline: 3 }
@@ -21,10 +22,19 @@ function isDegradation(oldSnap, newSnap) {
   return (STATUS_RANK[snapStatus(newSnap)] ?? 0) > (STATUS_RANK[snapStatus(oldSnap)] ?? 0)
 }
 
-async function fetchServers() {
+async function fetchServersWithMeta() {
   try {
-    const res = await fetch(`${API_BASE}/servers`)
-    return res.ok ? (await res.json()) || [] : []
+    const [serversRes, metaRes] = await Promise.all([
+      fetch(`${API_BASE}/servers`),
+      fetch(`${API_BASE}/server-meta`),
+    ])
+    const list = serversRes.ok ? (await serversRes.json()) || [] : []
+    const meta = metaRes.ok ? await metaRes.json() : {}
+    return list.map(s => ({
+      ...s,
+      group:       meta[s.id]?.group       || '',
+      displayName: meta[s.id]?.displayName || '',
+    }))
   } catch { return [] }
 }
 
@@ -121,6 +131,12 @@ export function PollingProvider({ children }) {
 
   const pollNow = useCallback(() => runPoll(serversRef.current), [runPoll])
 
+  const refreshServers = useCallback(async () => {
+    const list = await fetchServersWithMeta()
+    serversRef.current = list
+    setServers(list)
+  }, [])
+
   const dismissAlerts = useCallback(() => {
     setAlerts([])
     saveJson(ALERTS_KEY, [])
@@ -130,7 +146,7 @@ export function PollingProvider({ children }) {
     let cancelled = false
 
     const init = async () => {
-      const list = await fetchServers()
+      const list = await fetchServersWithMeta()
       if (cancelled) return
       serversRef.current = list
       setServers(list)
@@ -139,26 +155,46 @@ export function PollingProvider({ children }) {
     init()
 
     const pollTimer = setInterval(async () => {
-      const list = await fetchServers()
+      const list = await fetchServersWithMeta()
       if (cancelled) return
       serversRef.current = list
       setServers(list)
       await runPoll(list)
     }, POLL_MS)
 
+    const serverTimer = setInterval(async () => {
+      const list = await fetchServersWithMeta()
+      if (cancelled) return
+      serversRef.current = list
+      setServers(list)
+    }, SERVER_REFRESH_MS)
+
     const countdownTimer = setInterval(() => {
       setNextPollIn(p => Math.max(0, p - 1))
     }, 1000)
 
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchServersWithMeta().then(list => {
+          if (cancelled) return
+          serversRef.current = list
+          setServers(list)
+        })
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       cancelled = true
       clearInterval(pollTimer)
+      clearInterval(serverTimer)
       clearInterval(countdownTimer)
+      document.removeEventListener('visibilitychange', onVisible)
     }
   }, [runPoll])
 
   return (
-    <PollingContext.Provider value={{ servers, snapshots, alerts, lastPolledAt, polling, nextPollIn, pollNow, dismissAlerts }}>
+    <PollingContext.Provider value={{ servers, snapshots, alerts, lastPolledAt, polling, nextPollIn, pollNow, dismissAlerts, refreshServers }}>
       {children}
     </PollingContext.Provider>
   )

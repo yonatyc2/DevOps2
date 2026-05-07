@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePolling } from '../context/PollingContext'
+import ServerSelect from '../components/ServerSelect'
 import './BackupRestore.css'
 
 const DATE_EXPR = '$(date +%d_%m_%Y)'
@@ -80,7 +81,7 @@ function StepRow({ step, index, result, running, canRun, runningAll, onRun, srcS
 
 export default function BackupRestore() {
   const navigate = useNavigate()
-  const { servers } = usePolling()
+  const { servers } = usePolling()  // still needed for srcServer/tgtServer lookup
 
   const [srcServerId, setSrcServerId] = useState(
     sessionStorage.getItem('sentinelops.selectedServer') || ''
@@ -207,10 +208,7 @@ export default function BackupRestore() {
           <div className="br-panel-head">SOURCE</div>
           <div className="br-field-row">
             <label className="br-label">Server</label>
-            <select className="br-input" value={srcServerId} onChange={e => setSrcServerId(e.target.value)}>
-              <option value="">Select server…</option>
-              {servers.map(s => <option key={s.id} value={s.id}>{s.name || s.host}</option>)}
-            </select>
+            <ServerSelect className="br-input" value={srcServerId} onChange={setSrcServerId} />
           </div>
           <div className="br-field-row">
             <label className="br-label">Database <span className="br-req">*</span></label>
@@ -232,10 +230,7 @@ export default function BackupRestore() {
           <div className="br-panel-head">TARGET</div>
           <div className="br-field-row">
             <label className="br-label">Server</label>
-            <select className="br-input" value={tgtServerId} onChange={e => setTgtServerId(e.target.value)}>
-              <option value="">Select server…</option>
-              {servers.map(s => <option key={s.id} value={s.id}>{s.name || s.host}</option>)}
-            </select>
+            <ServerSelect className="br-input" value={tgtServerId} onChange={setTgtServerId} />
           </div>
           <div className="br-field-row">
             <label className="br-label">Database <span className="br-req">*</span></label>

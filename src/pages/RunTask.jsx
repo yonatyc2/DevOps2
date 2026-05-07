@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { usePolling } from '../context/PollingContext'
+import ServerSelect from '../components/ServerSelect'
 import './RunTask.css'
 
 function ParamField({ param, value, onChange }) {
@@ -196,17 +197,13 @@ export default function RunTask() {
       <div className="rt-config">
         <div className="rt-config-row">
           <label className="rt-param-label" htmlFor="rt-server">Server</label>
-          <select
+          <ServerSelect
             id="rt-server"
             className="rt-param-input"
             value={serverId}
-            onChange={e => setServerId(e.target.value)}
-          >
-            <option value="">Select a server…</option>
-            {servers.map(s => (
-              <option key={s.id} value={s.id}>{s.name || s.host}</option>
-            ))}
-          </select>
+            onChange={setServerId}
+            placeholder="Select a server…"
+          />
         </div>
 
         {task.params.map(p => (

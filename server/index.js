@@ -6,6 +6,7 @@ import registryRouter from './routes/registry.js';
 import historyRouter from './routes/history.js';
 import tasksRouter from './routes/tasks.js';
 import jobsRouter from './routes/jobs.js';
+import serverMetaRouter from './routes/server-meta.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,6 +20,7 @@ app.use('/api/registry', registryRouter);
 app.use('/api/history', historyRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/jobs', jobsRouter);
+app.use('/api/server-meta', serverMetaRouter);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 

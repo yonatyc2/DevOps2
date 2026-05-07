@@ -8,6 +8,7 @@ const navItems = [
   { to: '/grid',      label: 'Server Grid',     icon: '⬡',  end: false, badge: true },
   { to: '/history',   label: 'History',         icon: '📈', end: false },
   { to: '/tasks',     label: 'Daily Tasks',     icon: '✅', end: false },
+  { to: '/servers',   label: 'Servers',         icon: '🖥️', end: false },
   { to: '/assistant', label: 'AI Assistant',    icon: '🤖', end: false },
 ];
 
