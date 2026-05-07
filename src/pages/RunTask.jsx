@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { usePolling } from '../context/PollingContext'
 import ServerSelect from '../components/ServerSelect'
@@ -40,7 +40,20 @@ function ParamField({ param, value, onChange }) {
   return <input type="text" {...common} />
 }
 
-function StepOutput({ step, result, running, index, onRun, disabled }) {
+function ElapsedTimer({ startTime, running }) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!running || !startTime) { setElapsed(0); return }
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 500)
+    return () => clearInterval(t)
+  }, [running, startTime])
+  if (!running) return null
+  const m = Math.floor(elapsed / 60)
+  const s = elapsed % 60
+  return <span className="rt-elapsed">{m > 0 ? `${m}m ` : ''}{s}s</span>
+}
+
+function StepOutput({ step, result, running, index, onRun, disabled, startTime }) {
   return (
     <div className={`rt-step ${result ? (result.error ? 'rt-step--err' : 'rt-step--ok') : ''} ${running ? 'rt-step--running' : ''}`}>
       <div className="rt-step-header">
@@ -52,6 +65,7 @@ function StepOutput({ step, result, running, index, onRun, disabled }) {
           </span>
         )}
         {running && <span className="rt-step-badge rt-step-badge--running">Running…</span>}
+        <ElapsedTimer startTime={startTime} running={running} />
         <button
           type="button"
           className="rt-run-step-btn"
@@ -61,6 +75,13 @@ function StepOutput({ step, result, running, index, onRun, disabled }) {
           ▶ Run
         </button>
       </div>
+      {running && (
+        <div className="rt-progress-wrap">
+          <div className="rt-progress-track">
+            <div className="rt-progress-bar" />
+          </div>
+        </div>
+      )}
       {result?.command && (
         <pre className="rt-cmd">$ {result.command}</pre>
       )}
@@ -97,6 +118,7 @@ export default function RunTask() {
   const [runningStep, setRunningStep] = useState(null)
   const [runningAll, setRunningAll] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [startTimes, setStartTimes] = useState({})
   const runAllRef = useRef(false)
 
   useEffect(() => {
@@ -125,6 +147,7 @@ export default function RunTask() {
   async function runStep(index) {
     if (!serverId) return
     setRunningStep(index)
+    setStartTimes(prev => ({ ...prev, [index]: Date.now() }))
     setResults(prev => {
       const next = [...prev]
       next[index] = null
@@ -275,6 +298,7 @@ export default function RunTask() {
             running={runningStep === i}
             disabled={!canRun || runningAll || runningStep != null}
             onRun={() => runStep(i)}
+            startTime={startTimes[i]}
           />
         ))}
       </div>

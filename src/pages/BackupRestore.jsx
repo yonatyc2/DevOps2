@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePolling } from '../context/PollingContext'
 import ServerSelect from '../components/ServerSelect'
@@ -95,13 +95,31 @@ function buildCommand(stepId, { srcDb, srcPwd, tgtDb, tgtPwd, targetHost, sshUse
   }
 }
 
-function StepRow({ step, index, result, running, canRun, runningAll, onRun, srcServer, tgtServer }) {
+function ElapsedTimer({ startTime, running }) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!running || !startTime) { setElapsed(0); return }
+    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 500)
+    return () => clearInterval(t)
+  }, [running, startTime])
+  if (!running) return null
+  const m = Math.floor(elapsed / 60)
+  const s = elapsed % 60
+  return <span className="br-elapsed">{m > 0 ? `${m}m ` : ''}{s}s</span>
+}
+
+function StepRow({ step, index, result, running, canRun, runningAll, onRun, srcServer, tgtServer, startTime }) {
   const serverName = step.server === 'source'
     ? (srcServer?.displayName || srcServer?.name || srcServer?.host || '—')
     : (tgtServer?.displayName || tgtServer?.name || tgtServer?.host || '—')
 
-  const summary    = result && !result.error ? summarize(step.id, result.output) : ''
+  const summary     = result && !result.error ? summarize(step.id, result.output) : ''
   const cleanStderr = filterStderr(result?.stderr)
+
+  const SLOW_STEPS = new Set(['backup', 'restore'])
+  const stepLabel  = running
+    ? (SLOW_STEPS.has(step.id) ? (step.id === 'backup' ? 'Backing up…' : 'Restoring…') : 'Running…')
+    : null
 
   return (
     <div className={`br-step ${result ? (result.error ? 'br-step--err' : 'br-step--ok') : ''} ${running ? 'br-step--running' : ''}`}>
@@ -117,7 +135,8 @@ function StepRow({ step, index, result, running, canRun, runningAll, onRun, srcS
             {result.error ? 'Failed' : 'Done'}
           </span>
         )}
-        {running && <span className="br-badge br-badge--running">Running…</span>}
+        {running && <span className="br-badge br-badge--running">{stepLabel}</span>}
+        <ElapsedTimer startTime={startTime} running={running} />
         <button
           type="button"
           className="br-run-step-btn"
@@ -127,6 +146,13 @@ function StepRow({ step, index, result, running, canRun, runningAll, onRun, srcS
           ▶ Run
         </button>
       </div>
+      {running && (
+        <div className="br-progress-wrap">
+          <div className="br-progress-track">
+            <div className="br-progress-bar" />
+          </div>
+        </div>
+      )}
       {result?.command && <pre className="br-cmd">$ {result.command}</pre>}
       {summary && <div className="br-summary">{summary}</div>}
       {result?.output && <pre className="br-output">{result.output.trim()}</pre>}
@@ -155,6 +181,7 @@ export default function BackupRestore() {
   const [runningStep, setRunningStep] = useState(null)
   const [runningAll,  setRunningAll]  = useState(false)
   const [saved,       setSaved]       = useState(false)
+  const [startTimes,  setStartTimes]  = useState({})
   const runAllRef = useRef(false)
 
   const srcServer  = servers.find(s => s.id === srcServerId)
@@ -193,6 +220,7 @@ export default function BackupRestore() {
     const masked   = [fields.srcPwd, fields.tgtPwd, fields.sshPwd].filter(Boolean)
 
     setRunningStep(index)
+    setStartTimes(prev => ({ ...prev, [index]: Date.now() }))
     setResults(prev => { const n = [...prev]; n[index] = null; return n })
 
     try {
@@ -353,6 +381,7 @@ export default function BackupRestore() {
             onRun={() => executeStep(i)}
             srcServer={srcServer}
             tgtServer={tgtServer}
+            startTime={startTimes[i]}
           />
         ))}
       </div>

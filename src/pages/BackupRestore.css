@@ -282,6 +282,46 @@
 .br-run-step-btn:not(:disabled):hover { color: var(--accent); border-color: var(--accent); }
 .br-run-step-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* ── Progress bar ─────────────────────────────────────────────── */
+
+.br-elapsed {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--font-mono, monospace);
+  min-width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.br-progress-wrap {
+  padding: 0 12px 8px;
+}
+
+.br-progress-track {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.br-progress-bar {
+  position: absolute;
+  top: 0;
+  left: -35%;
+  width: 35%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  border-radius: 2px;
+  animation: br-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes br-slide {
+  0%   { left: -35%; }
+  100% { left: 100%; }
+}
+
 .br-cmd {
   margin: 0;
   padding: 4px 12px 6px;
