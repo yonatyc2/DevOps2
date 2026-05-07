@@ -11,6 +11,7 @@ import RunTask from './pages/RunTask';
 import JobHistory from './pages/JobHistory';
 import BackupRestore from './pages/BackupRestore';
 import ServerManager from './pages/ServerManager';
+import PgPrivileges from './pages/PgPrivileges';
 import { PollingProvider } from './context/PollingContext';
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/jobs" element={<JobHistory />} />
             <Route path="/backup-restore" element={<BackupRestore />} />
             <Route path="/servers" element={<ServerManager />} />
+            <Route path="/pg-roles" element={<PgPrivileges />} />
           </Routes>
         </Layout>
       </PollingProvider>

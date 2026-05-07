@@ -1,0 +1,367 @@
+/* ── PostgreSQL Role Manager ──────────────────────────────────── */
+
+.pgp-page {
+  padding: 1.25rem 1.5rem 2rem;
+  min-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────── */
+
+.pgp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.pgp-back-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--fast), border-color var(--fast);
+}
+.pgp-back-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.pgp-title-group { display: flex; flex-direction: column; gap: 1px; flex: 1; }
+.pgp-category { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-subtle); }
+.pgp-title    { font-size: 1.05rem; font-weight: 700; color: var(--text); margin: 0; }
+.pgp-desc     { font-size: 0.8rem; color: var(--text-subtle); margin: 0; line-height: 1.5; }
+
+/* ── Config ──────────────────────────────────────────────────── */
+
+.pgp-config {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.pgp-config-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.pgp-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.pgp-req { color: var(--danger); margin-left: 2px; }
+
+.pgp-input {
+  flex: 1;
+  padding: 5px 9px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 0.82rem;
+  min-width: 0;
+}
+.pgp-input:focus { outline: none; border-color: var(--border-focus); }
+
+.pgp-load-btn {
+  padding: 7px 18px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity var(--fast);
+  flex-shrink: 0;
+}
+.pgp-load-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pgp-load-btn:not(:disabled):hover { opacity: 0.88; }
+
+.pgp-err {
+  font-size: 0.82rem;
+  color: var(--danger);
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.25);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Body: list + edit side-by-side ─────────────────────────── */
+
+.pgp-body {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1rem;
+  align-items: start;
+}
+
+/* ── Role list ───────────────────────────────────────────────── */
+
+.pgp-list-wrap {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.pgp-list-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+.pgp-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.pgp-search {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-input);
+  color: var(--text);
+  font-size: 0.78rem;
+  width: 140px;
+}
+.pgp-search:focus { outline: none; border-color: var(--border-focus); }
+
+.pgp-list {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.pgp-role-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--fast);
+}
+.pgp-role-row:last-child { border-bottom: none; }
+.pgp-role-row:hover { background: var(--bg-hover); }
+.pgp-role-row--active { background: rgba(96,165,250,0.08); }
+.pgp-role-row--active:hover { background: rgba(96,165,250,0.13); }
+
+.pgp-role-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 130px;
+  font-family: var(--font-mono, monospace);
+}
+
+.pgp-role-privs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+
+.pgp-none       { font-size: 0.68rem; color: var(--text-subtle); font-style: italic; }
+.pgp-none-msg   { font-size: 0.82rem; color: var(--text-muted); padding: 1rem; }
+
+/* ── Privilege badges ────────────────────────────────────────── */
+
+.pgp-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+.pgp-badge--info   { background: rgba(96,165,250,0.12); color: var(--accent); }
+.pgp-badge--danger { background: rgba(251,191,36,0.15); color: #f59e0b; }
+
+/* ── Edit panel ──────────────────────────────────────────────── */
+
+.pgp-edit-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: sticky;
+  top: 1rem;
+}
+
+.pgp-edit-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.pgp-edit-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font-mono, monospace);
+}
+
+.pgp-edit-hint {
+  font-size: 0.7rem;
+  color: var(--text-subtle);
+}
+
+/* ── Toggle switches ─────────────────────────────────────────── */
+
+.pgp-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pgp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.pgp-toggle input { display: none; }
+.pgp-toggle--disabled { opacity: 0.5; pointer-events: none; }
+
+.pgp-toggle-track {
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--border-strong);
+  position: relative;
+  flex-shrink: 0;
+  transition: background var(--fast);
+}
+.pgp-toggle input:checked ~ .pgp-toggle-track {
+  background: var(--accent);
+}
+.pgp-toggle--danger input:checked ~ .pgp-toggle-track {
+  background: #f59e0b;
+}
+
+.pgp-toggle-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left var(--fast);
+}
+.pgp-toggle input:checked ~ .pgp-toggle-track .pgp-toggle-thumb {
+  left: 19px;
+}
+
+.pgp-toggle-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.pgp-toggle--danger .pgp-toggle-label { }
+
+/* ── Edit actions ────────────────────────────────────────────── */
+
+.pgp-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pgp-apply-btn {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity var(--fast);
+}
+.pgp-apply-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pgp-apply-btn:not(:disabled):hover { opacity: 0.88; }
+
+.pgp-reset-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--fast), color var(--fast);
+}
+.pgp-reset-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+.pgp-reset-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Result ──────────────────────────────────────────────────── */
+
+.pgp-result {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.pgp-result-cmd {
+  margin: 0;
+  padding: 6px 10px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-subtle);
+  background: var(--bg);
+  white-space: pre-wrap;
+  word-break: break-all;
+  border-bottom: 1px solid var(--border);
+}
+
+.pgp-result-msg {
+  display: block;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.pgp-result--ok  .pgp-result-msg { color: var(--success); background: rgba(52,211,154,0.07); }
+.pgp-result--err .pgp-result-msg { color: var(--danger);  background: rgba(248,113,113,0.07); }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+
+@media (max-width: 780px) {
+  .pgp-body { grid-template-columns: 1fr; }
+  .pgp-edit-panel { position: static; }
+}

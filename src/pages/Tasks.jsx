@@ -61,16 +61,28 @@ export default function Tasks() {
               </h2>
               <div className="tk-grid">
                 {cat === 'PostgreSQL' && (
-                  <button
-                    type="button"
-                    className="tk-card tk-card--workflow"
-                    onClick={() => navigate('/backup-restore')}
-                  >
-                    <span className="tk-workflow-badge">workflow</span>
-                    <span className="tk-card-name">🔄 Backup &amp; Restore</span>
-                    <span className="tk-card-desc">Backup a DB on source, SCP to target, drop → create → restore — all in one pipeline.</span>
-                    <span className="tk-card-steps">8 steps · 2 servers</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      className="tk-card tk-card--workflow"
+                      onClick={() => navigate('/backup-restore')}
+                    >
+                      <span className="tk-workflow-badge">workflow</span>
+                      <span className="tk-card-name">🔄 Backup &amp; Restore</span>
+                      <span className="tk-card-desc">Backup a DB on source, SCP to target, drop → create → restore — all in one pipeline.</span>
+                      <span className="tk-card-steps">8 steps · 2 servers</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="tk-card tk-card--workflow"
+                      onClick={() => navigate('/pg-roles')}
+                    >
+                      <span className="tk-workflow-badge">workflow</span>
+                      <span className="tk-card-name">🔐 Role Manager</span>
+                      <span className="tk-card-desc">Load all roles, view current privileges, and grant or revoke with toggle switches.</span>
+                      <span className="tk-card-steps">Superuser · Create DB · Login · more</span>
+                    </button>
+                  </>
                 )}
                 {visible.filter(t => t.category === cat).map(task => (
                   <button
