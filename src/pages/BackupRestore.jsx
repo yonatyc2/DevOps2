@@ -27,7 +27,7 @@ function buildCommand(stepId, { srcDb, srcPwd, tgtDb, tgtPwd, targetHost, sshUse
     case 'verify-src':
       return `ls -lh /tmp/${srcDb}_${DATE_EXPR}.sql`
     case 'scp':
-      return `sshpass -p '${q(sshPwd)}' scp -o StrictHostKeyChecking=no ${file} ${sshUser}@${targetHost}:/tmp/ && echo "Copied to ${targetHost}:/tmp/"`
+      return `(which sshpass || echo '${q(srcPwd)}' | sudo -S apt-get install -y sshpass) && sshpass -p '${q(sshPwd)}' scp -o StrictHostKeyChecking=no ${file} ${sshUser}@${targetHost}:/tmp/ && echo "Copied to ${targetHost}:/tmp/"`
     case 'terminate':
       return `echo '${q(tgtPwd)}' | sudo -Su postgres psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND datname = '${tgtDb}';"`
     case 'drop':
